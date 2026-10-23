@@ -1,0 +1,8 @@
+.output/
+.wxt/
+.superpowers/
+node_modules/
+playwright-report/
+test-results/
+pnpm-lock.yaml
+**/*.md

@@ -9,3 +9,10 @@
 
 # Claude Code 작업 공간(worktree)
 .claude/worktrees/
+
+# 빌드·테스트 산출물
+node_modules/
+.output/
+.wxt/
+playwright-report/
+test-results/

@@ -32,4 +32,17 @@
 
 ## 빌드/검증 명령
 
-아직 코드가 없다. 기술 스택이 정해지면 실행·테스트·lint/format·type check 명령을 여기에 적는다.
+| 목적 | 명령 |
+|---|---|
+| 개발(크롬 자동 실행·변경 즉시 반영) | `pnpm dev` |
+| 빌드 (`.output/chrome-mv3/`) | `pnpm build` |
+| 단위 테스트 | `pnpm test` |
+| E2E 테스트 (빌드 포함) | `pnpm test:e2e` |
+| 타입 검사 | `pnpm compile` |
+| 린트 | `pnpm lint` |
+| 포맷 검사 / 적용 | `pnpm format:check` / `pnpm format` |
+| 웹스토어 업로드용 zip | `pnpm zip` |
+
+커밋 전 전체 검증: `pnpm format:check && pnpm lint && pnpm compile && pnpm test && pnpm test:e2e`
+
+크롬에 직접 올려 보기: `pnpm build` → `chrome://extensions` → 개발자 모드 → "압축해제된 확장 프로그램을 로드합니다" → `.output/chrome-mv3` 선택
