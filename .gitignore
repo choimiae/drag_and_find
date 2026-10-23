@@ -6,3 +6,6 @@
 
 # Claude Code 개인 설정
 .claude/settings.local.json
+
+# Claude Code 작업 공간(worktree)
+.claude/worktrees/
