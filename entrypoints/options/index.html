@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <title>Drag and Find 설정</title>
+    <style>
+      body {
+        margin: 0;
+        padding: 16px 20px;
+        font-family:
+          system-ui,
+          -apple-system,
+          'Apple SD Gothic Neo',
+          'Malgun Gothic',
+          sans-serif;
+        font-size: 14px;
+        line-height: 1.6;
+      }
+      section + section {
+        margin-top: 16px;
+      }
+      .hint {
+        color: #59636e;
+        font-size: 13px;
+        margin: 2px 0 0;
+      }
+      kbd {
+        padding: 1px 6px;
+        border: 1px solid #d0d7de;
+        border-radius: 4px;
+      }
+    </style>
+  </head>
+  <body>
+    <section>
+      <label><input id="show-icon" type="checkbox" /> 드래그하면 🔍 아이콘 보여 주기</label>
+      <p class="hint">끄면 단축키로만 찾을 수 있습니다.</p>
+    </section>
+    <section>
+      <div>단축키: <kbd id="shortcut"></kbd></div>
+      <button id="change-shortcut" type="button">단축키 바꾸기</button>
+    </section>
+    <script type="module" src="./main.ts"></script>
+  </body>
+</html>
