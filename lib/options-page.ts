@@ -1,4 +1,4 @@
-import { loadSettings, saveSettings } from './settings';
+import { DEFAULT_SETTINGS, loadSettings, saveSettings } from './settings';
 import type { KeyValueArea } from './storage';
 
 const NO_SHORTCUT_TEXT = '지정되지 않음';
@@ -15,14 +15,36 @@ export async function initOptionsPage(doc: Document, deps: OptionsPageDeps): Pro
   const shortcutLabel = requireElement<HTMLElement>(doc, '#shortcut');
   const shortcutButton = requireElement<HTMLButtonElement>(doc, '#change-shortcut');
 
-  const settings = await loadSettings(deps.area);
+  let settings = DEFAULT_SETTINGS;
   checkbox.checked = settings.showIcon;
-  checkbox.addEventListener('change', () => {
-    void saveSettings(deps.area, { ...settings, showIcon: checkbox.checked });
-  });
 
-  shortcutLabel.textContent = (await deps.getShortcut()) || NO_SHORTCUT_TEXT;
+  // 불러오기가 늦거나 실패해도 조작은 되도록, 리스너는 await 전에 붙인다.
+  checkbox.addEventListener('change', () => {
+    const next = { ...settings, showIcon: checkbox.checked };
+    saveSettings(deps.area, next).then(
+      () => {
+        settings = next;
+      },
+      // 저장되지 않은 상태를 화면이 보여 주지 않도록 직전 값으로 되돌린다.
+      () => {
+        checkbox.checked = settings.showIcon;
+      },
+    );
+  });
   shortcutButton.addEventListener('click', () => void deps.openShortcutSettings());
+
+  try {
+    settings = await loadSettings(deps.area);
+    checkbox.checked = settings.showIcon;
+  } catch {
+    // 읽기 실패 시 기본값을 그대로 쓴다.
+  }
+
+  try {
+    shortcutLabel.textContent = (await deps.getShortcut()) || NO_SHORTCUT_TEXT;
+  } catch {
+    shortcutLabel.textContent = NO_SHORTCUT_TEXT;
+  }
 }
 
 function requireElement<T extends Element>(doc: Document, selector: string): T {

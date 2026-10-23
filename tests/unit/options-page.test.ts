@@ -66,6 +66,70 @@ describe('initOptionsPage', () => {
     expect(d.openShortcutSettings).toHaveBeenCalledTimes(1);
   });
 
+  it('shows the no-shortcut text and still opens settings when reading the shortcut fails', async () => {
+    const d = deps({
+      getShortcut: async () => {
+        throw new Error('commands unavailable');
+      },
+    });
+
+    await initOptionsPage(document, d);
+    document.getElementById('change-shortcut')?.click();
+
+    expect(document.getElementById('shortcut')?.textContent).toBe('지정되지 않음');
+    expect(d.openShortcutSettings).toHaveBeenCalledTimes(1);
+  });
+
+  it('keeps the default setting and still saves when loading fails', async () => {
+    const stored = memoryArea();
+    const area = {
+      get: async () => {
+        throw new Error('read failed');
+      },
+      set: stored.set,
+    };
+
+    await initOptionsPage(document, deps({ area }));
+    expect(checkbox().checked).toBe(true);
+
+    checkbox().checked = false;
+    checkbox().dispatchEvent(new Event('change'));
+    await flush();
+
+    expect(await loadSettings(stored)).toEqual({ showIcon: false });
+  });
+
+  it('puts the checkbox back when saving fails', async () => {
+    const area = {
+      ...memoryArea(),
+      set: async () => {
+        throw new Error('write failed');
+      },
+    };
+    await initOptionsPage(document, deps({ area }));
+    expect(checkbox().checked).toBe(true);
+
+    checkbox().checked = false;
+    checkbox().dispatchEvent(new Event('change'));
+    await flush();
+
+    expect(checkbox().checked).toBe(true);
+  });
+
+  it('saves the icon setting again when toggled off and on', async () => {
+    const area = memoryArea();
+    await initOptionsPage(document, deps({ area }));
+
+    checkbox().checked = false;
+    checkbox().dispatchEvent(new Event('change'));
+    await flush();
+    checkbox().checked = true;
+    checkbox().dispatchEvent(new Event('change'));
+    await flush();
+
+    expect(await loadSettings(area)).toEqual({ showIcon: true });
+  });
+
   it('fails clearly when the markup is missing', async () => {
     document.body.innerHTML = '';
 
