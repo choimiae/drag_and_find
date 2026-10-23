@@ -7,10 +7,10 @@ export type LookupService = (query: string) => Promise<LookupResult>;
 export function createLookupService(provider: LookupProvider, cache: LookupCache): LookupService {
   return async (query) => {
     const key = query.toLowerCase();
-    const cached = await cache.get(key);
+    const cached = await cache.get(key).catch(() => undefined); // 캐시는 속도를 위한 것이라 읽기 실패는 없는 것으로 본다
     if (cached) return cached;
     const result = await provider.lookup(query);
-    await cache.set(key, result);
+    await cache.set(key, result).catch(() => undefined); // 캐시는 속도를 위한 것이라 저장 실패로 찾은 결과를 버리지 않는다
     return result;
   };
 }

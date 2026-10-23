@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { createLookupCache } from '../../../lib/lookup/cache';
+import { createLookupCache, type LookupCache } from '../../../lib/lookup/cache';
 import { createLookupService } from '../../../lib/lookup/service';
 import type { LookupProvider, LookupResult } from '../../../lib/lookup/types';
 import { memoryArea } from '../memory-area';
@@ -35,6 +35,30 @@ describe('createLookupService', () => {
 
     expect(provider.lookup).toHaveBeenCalledTimes(1);
     expect(provider.lookup).toHaveBeenCalledWith('SaaS');
+  });
+
+  it('still returns the provider result when reading the cache fails', async () => {
+    const provider = fakeProvider(FOUND);
+    const cache: LookupCache = {
+      get: async () => {
+        throw new Error('storage broken');
+      },
+      set: async () => undefined,
+    };
+
+    expect(await createLookupService(provider, cache)('SaaS')).toEqual(FOUND);
+  });
+
+  it('still returns the provider result when writing the cache fails', async () => {
+    const provider = fakeProvider(FOUND);
+    const cache: LookupCache = {
+      get: async () => undefined,
+      set: async () => {
+        throw new Error('quota exceeded');
+      },
+    };
+
+    expect(await createLookupService(provider, cache)('SaaS')).toEqual(FOUND);
   });
 
   it('asks again after a network error', async () => {

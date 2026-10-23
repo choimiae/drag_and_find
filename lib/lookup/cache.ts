@@ -12,11 +12,21 @@ export interface LookupCache {
   set(query: string, result: LookupResult): Promise<void>;
 }
 
+function isCacheEntry(value: unknown): value is CacheEntry {
+  return (
+    Array.isArray(value) &&
+    value.length === 2 &&
+    typeof value[0] === 'string' &&
+    typeof value[1] === 'object' &&
+    value[1] !== null
+  );
+}
+
 /** 조회 결과를 저장소에 오래된 순으로 최대 200건까지 보관한다. 오류 결과는 보관하지 않는다. */
 export function createLookupCache(area: KeyValueArea): LookupCache {
   async function readEntries(): Promise<CacheEntry[]> {
     const stored = (await area.get(CACHE_STORAGE_KEY))[CACHE_STORAGE_KEY];
-    return Array.isArray(stored) ? (stored as CacheEntry[]) : [];
+    return Array.isArray(stored) ? stored.filter(isCacheEntry) : [];
   }
 
   return {

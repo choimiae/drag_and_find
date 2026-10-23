@@ -16,7 +16,8 @@ export default defineBackground(() => {
   browser.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     const pending = handleLookup(message);
     if (!pending) return undefined;
-    void pending.then(sendResponse);
+    // 어떤 이유로든 조회가 실패하면 페이지가 "찾는 중"에 멈추지 않도록 오류 결과로 답한다.
+    void pending.then(sendResponse, () => sendResponse({ status: 'network_error' }));
     return true;
   });
 

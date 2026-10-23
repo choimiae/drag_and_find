@@ -56,4 +56,13 @@ describe('createLookupCache', () => {
 
     expect(await cache.get('온보딩')).toBeUndefined();
   });
+
+  it('skips malformed entries inside the stored array', async () => {
+    const cache = createLookupCache(
+      memoryArea({ lookupCache: [null, 'x', ['only-key'], [3, {}], ['온보딩', null]] }),
+    );
+
+    await expect(cache.get('없는말')).resolves.toBeUndefined();
+    await expect(cache.get('온보딩')).resolves.toBeUndefined();
+  });
 });
