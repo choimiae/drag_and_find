@@ -1,0 +1,8 @@
+# IDE
+.idea/
+
+# Superpowers 브레인스토밍 시안
+.superpowers/
+
+# Claude Code 개인 설정
+.claude/settings.local.json
