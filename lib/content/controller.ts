@@ -64,10 +64,19 @@ export function createController(deps: ControllerDeps): Controller {
     showCard(anchor, query, { kind: 'result', result });
   }
 
+  async function isIconEnabledSafely(): Promise<boolean> {
+    try {
+      return await deps.isIconEnabled();
+    } catch {
+      // 확장이 업데이트되면 열려 있던 페이지의 확장 연결이 끊겨 설정을 읽지 못한다.
+      return false;
+    }
+  }
+
   async function showIconForSelection(): Promise<void> {
     const snapshot = readSelection();
     const check = snapshot ? checkSelection(snapshot.text) : null;
-    if (!snapshot || check?.kind !== 'ok' || !(await deps.isIconEnabled())) {
+    if (!snapshot || check?.kind !== 'ok' || !(await isIconEnabledSafely())) {
       overlay.hideIcon();
       return;
     }
