@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
-import { createLookupCache, type LookupCache } from '../../../lib/lookup/cache';
+import { CACHE_STORAGE_KEY, createLookupCache, type LookupCache } from '../../../lib/lookup/cache';
 import { createLookupService } from '../../../lib/lookup/service';
-import type { LookupProvider, LookupResult } from '../../../lib/lookup/types';
+import type { DisambiguationInfo, LookupProvider, LookupResult } from '../../../lib/lookup/types';
 import { memoryArea } from '../memory-area';
 
 const FOUND: LookupResult = {
@@ -67,6 +67,88 @@ describe('createLookupService', () => {
 
     await lookup('온보딩');
     await lookup('온보딩');
+
+    expect(provider.lookup).toHaveBeenCalledTimes(2);
+  });
+});
+
+const url = 'https://ko.wikipedia.org/wiki/x';
+const DATABASE = {
+  title: '데이터베이스 트리거',
+  extract: '테이블에 행이 추가되면 자동으로 실행되는 절차',
+  url,
+};
+const GUN = {
+  title: '방아쇠',
+  extract: '총의 격발 장치로 손가락으로 당기면 총구에서 탄이 나간다',
+  url,
+};
+const INFO: DisambiguationInfo = {
+  basic: [],
+  meanings: [
+    { label: '데이터베이스 트리거', title: '데이터베이스 트리거' },
+    { label: '방아쇠', title: '방아쇠' },
+  ],
+  candidates: [DATABASE, GUN],
+};
+const TRIGGER: LookupResult = {
+  status: 'found',
+  title: '트리거',
+  extract: '',
+  url,
+  isDisambiguation: true,
+  disambiguation: INFO,
+};
+const DB_CONTEXT = '주문 테이블에 행이 추가될 때마다 재고를 줄이도록 트리거를 걸어 두었다.';
+const GUN_CONTEXT = '사격장에서 총구 방향을 확인한 뒤 손가락으로 트리거를 당겨 탄을 쐈다.';
+
+describe('suggestions', () => {
+  it('picks a sense from the context', async () => {
+    const lookup = createLookupService(fakeProvider(TRIGGER), createLookupCache(memoryArea()));
+
+    const result = await lookup('트리거', DB_CONTEXT);
+
+    expect(result.status === 'found' && result.suggestion?.title).toBe('데이터베이스 트리거');
+  });
+
+  it('recomputes the suggestion for each context from one cached result', async () => {
+    const provider = fakeProvider(TRIGGER);
+    const lookup = createLookupService(provider, createLookupCache(memoryArea()));
+
+    const first = await lookup('트리거', DB_CONTEXT);
+    const second = await lookup('트리거', GUN_CONTEXT);
+
+    expect(provider.lookup).toHaveBeenCalledTimes(1);
+    expect(first.status === 'found' && first.suggestion?.title).toBe('데이터베이스 트리거');
+    expect(second.status === 'found' && second.suggestion?.title).toBe('방아쇠');
+  });
+
+  it('gives no suggestion without context', async () => {
+    const lookup = createLookupService(fakeProvider(TRIGGER), createLookupCache(memoryArea()));
+
+    const result = await lookup('트리거');
+
+    expect(result.status === 'found' && result.suggestion).toBeFalsy();
+  });
+
+  it('never stores the suggestion in the cache', async () => {
+    const area = memoryArea();
+    const lookup = createLookupService(fakeProvider(TRIGGER), createLookupCache(area));
+
+    await lookup('트리거', DB_CONTEXT);
+
+    expect(JSON.stringify((await area.get(CACHE_STORAGE_KEY))[CACHE_STORAGE_KEY])).not.toContain(
+      'suggestion',
+    );
+  });
+
+  it('does not cache a disambiguation result that lacks the extra information', async () => {
+    const bare: LookupResult = { ...TRIGGER, disambiguation: undefined };
+    const provider = fakeProvider(bare);
+    const lookup = createLookupService(provider, createLookupCache(memoryArea()));
+
+    await lookup('트리거');
+    await lookup('트리거');
 
     expect(provider.lookup).toHaveBeenCalledTimes(2);
   });

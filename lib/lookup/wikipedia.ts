@@ -1,4 +1,5 @@
-import type { LookupProvider, LookupResult } from './types';
+import { buildMeanings, parseDisambiguationText } from './disambiguation';
+import type { DisambiguationInfo, LookupProvider, LookupResult } from './types';
 
 export type FetchFn = (input: string, init?: RequestInit) => Promise<Response>;
 
@@ -17,6 +18,12 @@ interface SummaryResponse {
 
 interface SearchResponse {
   query?: { search?: Array<{ title?: string }> };
+}
+
+const EXCLUDED_CANDIDATE_TITLES = new Set(['위키낱말사전']);
+
+interface ExtractsResponse {
+  query?: { pages?: Record<string, { title?: string; extract?: string }> };
 }
 
 class RateLimitedError extends Error {}
@@ -75,14 +82,68 @@ export function createWikipediaKoProvider({
     return data?.query?.search?.[0]?.title ?? null;
   }
 
+  async function fetchPages(params: Record<string, string>) {
+    const query = new URLSearchParams({ action: 'query', format: 'json', ...params });
+    const data = await requestJson<ExtractsResponse>(`${ORIGIN}/w/api.php?${query}`);
+    return data?.query?.pages ? Object.values(data.query.pages) : null;
+  }
+
+  async function fetchDisambiguation(title: string): Promise<DisambiguationInfo | null> {
+    try {
+      const [textPages, linkedPages] = await Promise.all([
+        fetchPages({ prop: 'extracts', explaintext: '1', titles: title }),
+        fetchPages({
+          generator: 'links',
+          titles: title,
+          gplnamespace: '0',
+          gpllimit: '50',
+          prop: 'extracts',
+          exintro: '1',
+          explaintext: '1',
+          exlimit: '20',
+          exchars: '300',
+        }),
+      ]);
+      const text = textPages?.[0]?.extract;
+      if (text === undefined || linkedPages === null) return null;
+      const candidates = linkedPages.flatMap((page) =>
+        page.title &&
+        page.extract &&
+        page.title !== title &&
+        !EXCLUDED_CANDIDATE_TITLES.has(page.title)
+          ? [{ title: page.title, extract: page.extract, url: wikiUrl(page.title) }]
+          : [],
+      );
+      const { basic, lines } = parseDisambiguationText(text);
+      return {
+        basic,
+        meanings: buildMeanings(
+          lines,
+          candidates.map((c) => c.title),
+        ),
+        candidates,
+      };
+    } catch {
+      // 뜻 모음 추가 정보는 덤이다. 실패하면 기존처럼 "뜻이 여러 개" 안내만 보여 준다.
+      return null;
+    }
+  }
+
+  async function findArticle(query: string): Promise<LookupResult> {
+    const direct = await fetchSummary(query);
+    if (direct) return direct;
+    const candidate = await searchTopTitle(query);
+    if (!candidate || !isRelevantTitle(query, candidate)) return { status: 'not_found' };
+    return (await fetchSummary(candidate)) ?? { status: 'not_found' };
+  }
+
   return {
     async lookup(query) {
       try {
-        const direct = await fetchSummary(query);
-        if (direct) return direct;
-        const candidate = await searchTopTitle(query);
-        if (!candidate || !isRelevantTitle(query, candidate)) return { status: 'not_found' };
-        return (await fetchSummary(candidate)) ?? { status: 'not_found' };
+        const found = await findArticle(query);
+        if (found.status !== 'found' || !found.isDisambiguation) return found;
+        const disambiguation = await fetchDisambiguation(found.title);
+        return disambiguation ? { ...found, disambiguation } : found;
       } catch (error) {
         if (error instanceof RateLimitedError) return { status: 'rate_limited' };
         return { status: 'network_error' };
@@ -108,5 +169,9 @@ function normalizeForMatch(text: string): string {
 
 function articleUrl(candidate: string | undefined, title: string): string {
   if (candidate?.startsWith(`${ORIGIN}/`)) return candidate;
+  return wikiUrl(title);
+}
+
+function wikiUrl(title: string): string {
   return `${ORIGIN}/wiki/${encodeURIComponent(title)}`;
 }

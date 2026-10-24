@@ -4,6 +4,7 @@ import {
   isRelevantTitle,
   type FetchFn,
 } from '../../../lib/lookup/wikipedia';
+import { linkedResponse, pageTextResponse } from '../fixtures/disambiguation/load';
 
 const SUMMARY_PATH = '/api/rest_v1/page/summary/';
 
@@ -191,5 +192,69 @@ describe('isRelevantTitle', () => {
   it('rejects unrelated titles', () => {
     expect(isRelevantTitle('이탈률', '유체이탈')).toBe(false);
     expect(isRelevantTitle('PoC', '개념 증명')).toBe(false);
+  });
+});
+
+function disambiguationFetch(word: string, overrides: { linked?: () => Response } = {}) {
+  return fakeFetch((url) => {
+    if (isSummary(url)) {
+      return summaryTitleOf(url) === word
+        ? summary(word, { type: 'disambiguation', extract: `${word}는 다음 뜻으로 쓰인다.` })
+        : notFound();
+    }
+    if (url.searchParams.get('generator') === 'links') {
+      return overrides.linked ? overrides.linked() : json(linkedResponse(word));
+    }
+    return json(pageTextResponse(word));
+  });
+}
+
+describe('disambiguation pages', () => {
+  it('adds basic meanings, meanings and candidates with two extra requests', async () => {
+    const fetchFn = disambiguationFetch('트리거');
+
+    const result = await provider(fetchFn).lookup('트리거');
+
+    expect(fetchFn).toHaveBeenCalledTimes(3);
+    expect(result).toMatchObject({ status: 'found', isDisambiguation: true });
+    if (result.status !== 'found' || !result.disambiguation) throw new Error('no disambiguation');
+    expect(result.disambiguation.basic).toHaveLength(2);
+    expect(result.disambiguation.meanings).toContainEqual({
+      label: '데이터베이스 트리거',
+      title: '데이터베이스 트리거',
+    });
+    expect(result.disambiguation.candidates.map((c) => c.title)).toContain('방아쇠');
+  });
+
+  it('excludes the dictionary project page and builds Wikipedia urls for candidates', async () => {
+    const result = await provider(disambiguationFetch('커널')).lookup('커널');
+
+    if (result.status !== 'found' || !result.disambiguation) throw new Error('no disambiguation');
+    const titles = result.disambiguation.candidates.map((c) => c.title);
+    expect(titles).not.toContain('위키낱말사전');
+    for (const candidate of result.disambiguation.candidates) {
+      expect(candidate.url).toBe(
+        `https://ko.wikipedia.org/wiki/${encodeURIComponent(candidate.title)}`,
+      );
+    }
+  });
+
+  it('keeps the plain disambiguation result when an extra request fails', async () => {
+    const fetchFn = disambiguationFetch('트리거', {
+      linked: () => new Response('', { status: 429 }),
+    });
+
+    const result = await provider(fetchFn).lookup('트리거');
+
+    expect(result).toMatchObject({ status: 'found', isDisambiguation: true });
+    expect(result.status === 'found' && result.disambiguation).toBeFalsy();
+  });
+
+  it('makes no extra request for a normal article', async () => {
+    const fetchFn = fakeFetch(() => summary('온보딩'));
+
+    await provider(fetchFn).lookup('온보딩');
+
+    expect(fetchFn).toHaveBeenCalledTimes(1);
   });
 });
