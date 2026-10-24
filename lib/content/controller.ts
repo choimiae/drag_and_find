@@ -1,6 +1,6 @@
 import { DEFAULT_SETTINGS } from '../settings';
 import type { LookupResult } from '../lookup/types';
-import { blockTextOf, extractContext } from './context';
+import { contextAroundRange } from './context';
 import { checkSelection, isInEditableContext } from '../selection';
 import type { CardState } from '../ui/card';
 import type { DocumentRect, Overlay } from '../ui/overlay';
@@ -39,7 +39,7 @@ export function createController(deps: ControllerDeps): Controller {
     const last = rects[rects.length - 1] ?? range.getBoundingClientRect();
     return {
       text: selection.toString(),
-      context: extractContext(blockTextOf(selection.anchorNode), selection.toString()),
+      context: contextAroundRange(range),
       // 문서 좌표로 저장해 두면 카드가 뜨기 전에 스크롤돼도 단어 옆에 놓인다.
       anchor: {
         top: last.top + win.scrollY,
