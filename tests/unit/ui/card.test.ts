@@ -7,6 +7,32 @@ let handlers: CardHandlers;
 
 const part = (role: string) => card.querySelector<HTMLElement>(`[data-role="${role}"]`);
 
+const url = 'https://ko.wikipedia.org/wiki/x';
+const DATABASE = { title: '데이터베이스 트리거', extract: '테이블에 행이 추가되면 실행', url };
+
+function disambiguation(overrides: Partial<FoundResult> = {}): CardState {
+  return {
+    kind: 'result',
+    result: {
+      status: 'found',
+      title: '트리거',
+      extract: '',
+      url,
+      isDisambiguation: true,
+      disambiguation: {
+        basic: ['총의 방아쇠를 뜻하는 사격용어이다.'],
+        meanings: [
+          { label: '데이터베이스 트리거', title: '데이터베이스 트리거' },
+          { label: '트리거 (애니메이션 제작사)', title: '트리거 (애니메이션 제작사)' },
+          { label: '트리거 전략', title: null },
+        ],
+        candidates: [DATABASE],
+      },
+      ...overrides,
+    },
+  };
+}
+
 beforeEach(() => {
   card = document.createElement('section');
   handlers = { onClose: vi.fn(), onRetry: vi.fn(), onSelectMeaning: vi.fn() };
@@ -146,32 +172,6 @@ describe('renderCard', () => {
 });
 
 describe('disambiguation card', () => {
-  const url = 'https://ko.wikipedia.org/wiki/x';
-  const DATABASE = { title: '데이터베이스 트리거', extract: '테이블에 행이 추가되면 실행', url };
-
-  function disambiguation(overrides: Partial<FoundResult> = {}): CardState {
-    return {
-      kind: 'result',
-      result: {
-        status: 'found',
-        title: '트리거',
-        extract: '',
-        url,
-        isDisambiguation: true,
-        disambiguation: {
-          basic: ['총의 방아쇠를 뜻하는 사격용어이다.'],
-          meanings: [
-            { label: '데이터베이스 트리거', title: '데이터베이스 트리거' },
-            { label: '트리거 (애니메이션 제작사)', title: '트리거 (애니메이션 제작사)' },
-            { label: '트리거 전략', title: null },
-          ],
-          candidates: [DATABASE],
-        },
-        ...overrides,
-      },
-    };
-  }
-
   it('shows the suggestion first and opens it on click', () => {
     renderCard(card, '트리거', disambiguation({ suggestion: DATABASE }), handlers);
 
@@ -266,5 +266,56 @@ describe('disambiguation card', () => {
     renderCard(card, '트리거', disambiguation({ disambiguation: undefined }), handlers);
 
     expect(part('body')?.textContent).toContain('뜻이 여러 개인 단어입니다');
+  });
+});
+
+describe('design details', () => {
+  it('shows the "뜻 여러 개" badge only for disambiguation results', () => {
+    renderCard(card, '트리거', disambiguation(), handlers);
+    expect(part('badge')?.textContent).toBe('뜻 여러 개');
+
+    renderCard(card, '온보딩', { kind: 'loading' }, handlers);
+    expect(part('badge')).toBeNull();
+
+    renderCard(
+      card,
+      'SaaS',
+      {
+        kind: 'result',
+        result: {
+          status: 'found',
+          title: 'SaaS',
+          extract: '설명',
+          url: 'https://ko.wikipedia.org/wiki/x',
+          isDisambiguation: false,
+        },
+      },
+      handlers,
+    );
+    expect(part('badge')).toBeNull();
+  });
+
+  it('keeps the title text unchanged next to the badge', () => {
+    renderCard(card, '트리거', disambiguation(), handlers);
+
+    expect(part('title')?.textContent).toBe('트리거');
+  });
+
+  it('puts the suggestion inside its own box', () => {
+    renderCard(card, '트리거', disambiguation({ suggestion: DATABASE }), handlers);
+
+    const box = part('suggestion-box');
+    expect(box?.textContent).toContain('이 글에서는 아마');
+    expect(box?.querySelector('[data-role="suggestion"]')).not.toBeNull();
+    expect(box?.querySelector('[data-role="suggestion-extract"]')).not.toBeNull();
+  });
+
+  it('marks search links with G and N but keeps readable names', () => {
+    renderCard(card, '온보딩', { kind: 'loading' }, handlers);
+
+    expect(part('google')?.querySelector('.card-action-mark')?.textContent).toBe('G');
+    expect(part('naver')?.querySelector('.card-action-mark')?.textContent).toBe('N');
+    expect(part('google')?.getAttribute('aria-label')).toBe('구글 검색');
+    expect(part('naver')?.getAttribute('aria-label')).toBe('네이버 검색');
   });
 });

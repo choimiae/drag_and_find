@@ -34,7 +34,7 @@ export function renderCard(
   handlers: CardHandlers,
 ): void {
   const doc = card.ownerDocument;
-  const header = buildHeader(doc, titleFor(query, state), handlers.onClose);
+  const header = buildHeader(doc, titleFor(query, state), isAmbiguous(state), handlers.onClose);
   const body = element(doc, 'div', { className: 'card-body', role: 'body' });
   body.append(...bodyContent(doc, state, handlers));
   const actions = state.kind === 'too_long' ? [] : [buildActions(doc, query)];
@@ -45,6 +45,12 @@ function titleFor(query: string, state: CardState): string {
   if (state.kind === 'too_long') return '선택한 글';
   if (state.kind === 'result' && state.result.status === 'found') return state.result.title;
   return query;
+}
+
+function isAmbiguous(state: CardState): boolean {
+  return (
+    state.kind === 'result' && state.result.status === 'found' && state.result.isDisambiguation
+  );
 }
 
 function bodyContent(doc: Document, state: CardState, handlers: CardHandlers): Node[] {
@@ -111,15 +117,17 @@ function suggestionBlock(
   suggestion: SenseCandidate,
   onSelect: (title: string) => void,
 ): Node[] {
-  return [
-    sectionTitle(doc, '이 글에서는 아마'),
+  const box = element(doc, 'div', { className: 'card-suggestion', role: 'suggestion-box' });
+  box.append(
+    element(doc, 'p', { className: 'card-chip', text: '이 글에서는 아마' }),
     meaningButton(doc, suggestion.title, suggestion.title, 'suggestion', onSelect),
     element(doc, 'p', {
       className: 'card-suggestion-extract',
       role: 'suggestion-extract',
       text: suggestion.extract,
     }),
-  ];
+  );
+  return [box];
 }
 
 function meaningList(
@@ -184,26 +192,51 @@ function shorten(text: string): string {
   return chars.length > MAX_LABEL_LENGTH ? `${chars.slice(0, MAX_LABEL_LENGTH).join('')}…` : text;
 }
 
-function buildHeader(doc: Document, title: string, onClose: () => void): HTMLElement {
+function buildHeader(
+  doc: Document,
+  title: string,
+  ambiguous: boolean,
+  onClose: () => void,
+): HTMLElement {
   const header = element(doc, 'header', { className: 'card-header' });
+  const heading = element(doc, 'span', { className: 'card-heading' });
+  heading.append(element(doc, 'strong', { className: 'card-title', role: 'title', text: title }));
+  if (ambiguous) {
+    heading.append(
+      element(doc, 'span', { className: 'card-badge', role: 'badge', text: '뜻 여러 개' }),
+    );
+  }
   const close = element(doc, 'button', { className: 'card-close', role: 'close', text: '✕' });
   close.setAttribute('type', 'button');
   close.setAttribute('aria-label', '닫기');
   close.addEventListener('click', onClose);
-  header.append(
-    element(doc, 'strong', { className: 'card-title', role: 'title', text: title }),
-    close,
-  );
+  header.append(heading, close);
   return header;
 }
 
 function buildActions(doc: Document, query: string): HTMLElement {
   const actions = element(doc, 'footer', { className: 'card-actions' });
   actions.append(
-    externalLink(doc, googleSearchUrl(query), '구글 검색', 'google', 'card-action'),
-    externalLink(doc, naverSearchUrl(query), '네이버 검색', 'naver', 'card-action'),
+    actionLink(doc, googleSearchUrl(query), 'G', '구글 검색', 'google'),
+    actionLink(doc, naverSearchUrl(query), 'N', '네이버 검색', 'naver'),
   );
   return actions;
+}
+
+function actionLink(
+  doc: Document,
+  href: string,
+  mark: string,
+  name: string,
+  role: string,
+): HTMLElement {
+  const link = externalLink(doc, href, name, role, 'card-action');
+  link.prepend(
+    element(doc, 'span', { className: `card-action-mark card-action-mark-${role}`, text: mark }),
+  );
+  // 표시 글자(G/N)가 이름 앞에 붙어 읽히지 않도록 이름을 따로 준다.
+  link.setAttribute('aria-label', name);
+  return link;
 }
 
 function message(doc: Document, text: string): HTMLElement {
