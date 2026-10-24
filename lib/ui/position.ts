@@ -1,6 +1,6 @@
 export const CARD_GAP = 8;
 export const VIEWPORT_MARGIN = 8;
-export const MIN_CARD_HEIGHT = 80;
+export const MIN_CARD_HEIGHT = 200;
 export const ICON_SIZE = 28;
 export const ICON_GAP = 4;
 

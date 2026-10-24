@@ -42,12 +42,13 @@ describe('computeCardPlacement', () => {
   });
 
   it('shrinks the card when neither side has enough room', () => {
-    const short = { ...VIEWPORT, height: 300 };
+    const short = { ...VIEWPORT, height: 450 };
+    const tall = { width: 320, height: 400 };
 
-    expect(computeCardPlacement(anchorAt(140), CARD, short)).toEqual({
+    expect(computeCardPlacement(anchorAt(140), tall, short)).toEqual({
       top: 168,
       left: 50,
-      maxHeight: 124,
+      maxHeight: 274,
       placement: 'below',
     });
   });
@@ -55,7 +56,7 @@ describe('computeCardPlacement', () => {
   it('never shrinks below the minimum height', () => {
     const tiny = { ...VIEWPORT, height: 150 };
 
-    expect(computeCardPlacement(anchorAt(60), CARD, tiny).maxHeight).toBe(80);
+    expect(computeCardPlacement(anchorAt(60), CARD, tiny).maxHeight).toBe(200);
   });
 });
 

@@ -12,6 +12,7 @@ const LIGHT_VARS = `
   --dnf-accent-line: #d6e6fd;
   --dnf-tag-text: #1a5fc4;
   --dnf-badge: #f1f3f5;
+  --dnf-scrollbar: #c4cad2;
   --dnf-button: #ffffff;
   --dnf-shadow: 0 8px 24px rgba(20, 30, 50, 0.12);
 `;
@@ -30,6 +31,7 @@ const DARK_VARS = `
   --dnf-accent-line: #2d4a73;
   --dnf-tag-text: #9cc2f7;
   --dnf-badge: #2b323b;
+  --dnf-scrollbar: #4a5360;
   --dnf-button: #262c34;
   --dnf-shadow: 0 8px 24px rgba(0, 0, 0, 0.55);
 `;
@@ -70,8 +72,10 @@ export const OVERLAY_CSS = `
 .card {
   position: absolute;
   box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
   width: 320px;
-  overflow: auto;
+  overflow: hidden;
   border: 1px solid var(--dnf-border);
   border-radius: 12px;
   background: var(--dnf-surface);
@@ -82,6 +86,7 @@ export const OVERLAY_CSS = `
 }
 .card-header {
   display: flex;
+  flex: none;
   align-items: flex-start;
   justify-content: space-between;
   gap: 8px;
@@ -110,7 +115,10 @@ export const OVERLAY_CSS = `
   font-size: 13px;
 }
 .card-close:hover, .card-close:focus-visible { color: var(--dnf-text); background: var(--dnf-badge); }
-.card-body { padding: 4px 15px 12px; }
+.card-body { flex: 1 1 auto; min-height: 0; overflow: auto; padding: 4px 15px 12px; }
+.card-body::-webkit-scrollbar { width: 6px; }
+.card-body::-webkit-scrollbar-thumb { background: var(--dnf-scrollbar); border-radius: 999px; }
+.card-body::-webkit-scrollbar-track { background: transparent; }
 .card-extract {
   margin: 4px 0 0;
   color: var(--dnf-text-soft);
@@ -194,6 +202,7 @@ export const OVERLAY_CSS = `
 .card-more { margin: 6px 0 0; color: var(--dnf-muted); font-size: 11.5px; }
 .card-actions {
   display: flex;
+  flex: none;
   gap: 7px;
   padding: 10px 15px 12px;
   border-top: 1px solid var(--dnf-divider);
