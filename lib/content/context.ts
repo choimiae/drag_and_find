@@ -1,12 +1,18 @@
 import { MAX_CONTEXT_LENGTH } from '../messages';
 
 export const CONTEXT_RADIUS = 100;
+const RAW_SLICE_LENGTH = 400;
 const BLOCK_SELECTOR = 'p, li, td, dd, blockquote, h1, h2, h3, h4, h5, h6, article, section, div';
 
 /** 선택 글자 앞 100자·뒤 100자를 이어 붙여 문맥으로 만든다. 전체는 요청 한도로 자른다. */
 export function joinContext(before: string, selected: string, after: string): string {
-  const head = Array.from(collapse(before)).slice(-CONTEXT_RADIUS).join('');
-  const tail = Array.from(collapse(after)).slice(0, CONTEXT_RADIUS).join('');
+  // 아주 큰 블록(페이지 전체 글 등)을 통째로 처리하지 않도록, 공백 정리 전에 앞뒤 일부만 먼저 자른다.
+  const head = Array.from(collapse(before.slice(-RAW_SLICE_LENGTH)))
+    .slice(-CONTEXT_RADIUS)
+    .join('');
+  const tail = Array.from(collapse(after.slice(0, RAW_SLICE_LENGTH)))
+    .slice(0, CONTEXT_RADIUS)
+    .join('');
   const joined = collapse(`${head}${collapse(selected)}${tail}`).trim();
   return Array.from(joined).slice(0, MAX_CONTEXT_LENGTH).join('');
 }

@@ -9,6 +9,12 @@ describe('joinContext', () => {
     );
   });
 
+  it('still keeps 100 characters on each side of a huge block', () => {
+    expect(joinContext('가'.repeat(2_000_000), '트리거', '나'.repeat(2_000_000))).toBe(
+      `${'가'.repeat(100)}트리거${'나'.repeat(100)}`,
+    );
+  });
+
   it('keeps short parts whole', () => {
     expect(joinContext('주문 테이블에 ', '트리거', '를 걸었다.')).toBe(
       '주문 테이블에 트리거를 걸었다.',
