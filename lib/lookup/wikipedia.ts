@@ -111,7 +111,7 @@ export function createWikipediaKoProvider({
         page.title !== title &&
         !EXCLUDED_CANDIDATE_TITLES.has(page.title);
       const candidates = linkedPages.flatMap((page) =>
-        isLinkable(page) && page.extract
+        isLinkable(page) && typeof page.extract === 'string' && page.extract !== ''
           ? [{ title: page.title, extract: page.extract, url: wikiUrl(page.title) }]
           : [],
       );
