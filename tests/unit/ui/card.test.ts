@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { renderCard, type CardHandlers } from '../../../lib/ui/card';
+import { renderCard, type CardHandlers, type CardState } from '../../../lib/ui/card';
+import type { FoundResult } from '../../../lib/lookup/types';
 
 let card: HTMLElement;
 let handlers: CardHandlers;
@@ -8,7 +9,7 @@ const part = (role: string) => card.querySelector<HTMLElement>(`[data-role="${ro
 
 beforeEach(() => {
   card = document.createElement('section');
-  handlers = { onClose: vi.fn(), onRetry: vi.fn() };
+  handlers = { onClose: vi.fn(), onRetry: vi.fn(), onSelectMeaning: vi.fn() };
 });
 
 describe('renderCard', () => {
@@ -141,5 +142,129 @@ describe('renderCard', () => {
     renderCard(card, '온보딩', { kind: 'result', result: { status: 'not_found' } }, handlers);
 
     expect(card.querySelectorAll('[data-role="body"]')).toHaveLength(1);
+  });
+});
+
+describe('disambiguation card', () => {
+  const url = 'https://ko.wikipedia.org/wiki/x';
+  const DATABASE = { title: '데이터베이스 트리거', extract: '테이블에 행이 추가되면 실행', url };
+
+  function disambiguation(overrides: Partial<FoundResult> = {}): CardState {
+    return {
+      kind: 'result',
+      result: {
+        status: 'found',
+        title: '트리거',
+        extract: '',
+        url,
+        isDisambiguation: true,
+        disambiguation: {
+          basic: ['총의 방아쇠를 뜻하는 사격용어이다.'],
+          meanings: [
+            { label: '데이터베이스 트리거', title: '데이터베이스 트리거' },
+            { label: '트리거 (애니메이션 제작사)', title: '트리거 (애니메이션 제작사)' },
+            { label: '트리거 전략', title: null },
+          ],
+          candidates: [DATABASE],
+        },
+        ...overrides,
+      },
+    };
+  }
+
+  it('shows the suggestion first and opens it on click', () => {
+    renderCard(card, '트리거', disambiguation({ suggestion: DATABASE }), handlers);
+
+    expect(card.textContent).toContain('이 글에서는 아마');
+    expect(part('suggestion')?.textContent).toBe('데이터베이스 트리거');
+    expect(part('suggestion-extract')?.textContent).toBe('테이블에 행이 추가되면 실행');
+    part('suggestion')?.click();
+    expect(handlers.onSelectMeaning).toHaveBeenCalledWith('데이터베이스 트리거');
+  });
+
+  it('leaves the suggested sense out of the other meanings', () => {
+    renderCard(card, '트리거', disambiguation({ suggestion: DATABASE }), handlers);
+
+    const labels = [...card.querySelectorAll('[data-role="meaning"]')].map((b) => b.textContent);
+    expect(labels).toEqual(['트리거 (애니메이션 제작사)']);
+  });
+
+  it('shows basic meanings and other meanings without a suggestion', () => {
+    renderCard(card, '트리거', disambiguation(), handlers);
+
+    expect(card.textContent).not.toContain('이 글에서는 아마');
+    expect(card.textContent).toContain('기본 뜻');
+    expect(card.textContent).toContain('다른 뜻');
+    expect(card.querySelectorAll('[data-role="basic"]')).toHaveLength(1);
+    expect(card.querySelectorAll('[data-role="meaning"]')).toHaveLength(2);
+    expect(part('meaning-text')?.textContent).toBe('트리거 전략');
+    expect(part('wiki-link')).not.toBeNull();
+  });
+
+  it('opens a meaning by its article title, not its label', () => {
+    const state = disambiguation({
+      disambiguation: {
+        basic: [],
+        meanings: [{ label: '데이터 모델', title: '데이터 모델 (전산)' }],
+        candidates: [],
+      },
+    });
+    renderCard(card, '모델', state, handlers);
+
+    part('meaning')?.click();
+
+    expect(part('meaning')?.textContent).toBe('데이터 모델');
+    expect(handlers.onSelectMeaning).toHaveBeenCalledWith('데이터 모델 (전산)');
+  });
+
+  it('shows at most eight meanings and counts the rest', () => {
+    const meanings = Array.from({ length: 10 }, (_, i) => ({ label: `뜻 ${i}`, title: `뜻 ${i}` }));
+    renderCard(
+      card,
+      '모델',
+      disambiguation({ disambiguation: { basic: [], meanings, candidates: [] } }),
+      handlers,
+    );
+
+    expect(card.querySelectorAll('[data-role="meaning"]')).toHaveLength(8);
+    expect(part('more-meanings')?.textContent).toBe('외 2개');
+  });
+
+  it('shortens labels longer than forty characters', () => {
+    const label = '가'.repeat(41);
+    renderCard(
+      card,
+      '모델',
+      disambiguation({
+        disambiguation: { basic: [], meanings: [{ label, title: null }], candidates: [] },
+      }),
+      handlers,
+    );
+
+    expect(part('meaning-text')?.textContent).toBe(`${'가'.repeat(40)}…`);
+  });
+
+  it('never turns meaning text into HTML', () => {
+    renderCard(
+      card,
+      '모델',
+      disambiguation({
+        disambiguation: {
+          basic: ['<img src=x onerror=alert(1)>'],
+          meanings: [{ label: '<b>x</b>', title: null }],
+          candidates: [],
+        },
+      }),
+      handlers,
+    );
+
+    expect(card.querySelector('img')).toBeNull();
+    expect(card.querySelector('b')).toBeNull();
+  });
+
+  it('keeps the old notice when the extra information is missing', () => {
+    renderCard(card, '트리거', disambiguation({ disambiguation: undefined }), handlers);
+
+    expect(part('body')?.textContent).toContain('뜻이 여러 개인 단어입니다');
   });
 });

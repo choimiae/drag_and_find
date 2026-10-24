@@ -64,6 +64,28 @@ export const OVERLAY_CSS = `
 .card-message { margin: 0 0 6px; color: var(--dnf-muted); }
 .card-link { color: var(--dnf-accent); text-decoration: none; font-size: 13px; }
 .card-retry { margin-left: 6px; cursor: pointer; }
+.card-section-title { margin: 8px 0 2px; color: var(--dnf-muted); font-size: 12px; font-weight: 600; }
+.card-basic { margin: 0 0 4px; }
+.card-suggestion-extract {
+  margin: 2px 0 6px;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.card-meanings { margin: 0 0 4px; padding-left: 16px; }
+.card-meaning {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--dnf-accent);
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+}
+.card-meaning:hover, .card-meaning:focus-visible { text-decoration: underline; }
+.card-meaning-text { color: var(--dnf-text); }
+.card-more { margin: 0 0 4px; color: var(--dnf-muted); font-size: 12px; }
 .card-actions { display: flex; gap: 8px; padding: 10px 12px; border-top: 1px solid var(--dnf-border); }
 .card-action {
   flex: 1;

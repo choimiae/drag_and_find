@@ -1,13 +1,23 @@
-import type { LookupResult } from '../lookup/types';
+import type {
+  DisambiguationInfo,
+  FoundResult,
+  LookupResult,
+  Meaning,
+  SenseCandidate,
+} from '../lookup/types';
 import { googleSearchUrl, naverSearchUrl } from '../search-urls';
 import { MAX_QUERY_LENGTH } from '../selection';
 
 export type CardState =
   { kind: 'loading' } | { kind: 'result'; result: LookupResult } | { kind: 'too_long' };
 
+const MAX_MEANINGS = 8;
+const MAX_LABEL_LENGTH = 40;
+
 export interface CardHandlers {
   onClose(): void;
   onRetry(): void;
+  onSelectMeaning(title: string): void;
 }
 
 interface ElementOptions {
@@ -26,7 +36,7 @@ export function renderCard(
   const doc = card.ownerDocument;
   const header = buildHeader(doc, titleFor(query, state), handlers.onClose);
   const body = element(doc, 'div', { className: 'card-body', role: 'body' });
-  body.append(...bodyContent(doc, state, handlers.onRetry));
+  body.append(...bodyContent(doc, state, handlers));
   const actions = state.kind === 'too_long' ? [] : [buildActions(doc, query)];
   card.replaceChildren(header, body, ...actions);
 }
@@ -37,7 +47,7 @@ function titleFor(query: string, state: CardState): string {
   return query;
 }
 
-function bodyContent(doc: Document, state: CardState, onRetry: () => void): Node[] {
+function bodyContent(doc: Document, state: CardState, handlers: CardHandlers): Node[] {
   if (state.kind === 'loading') return [doc.createTextNode('찾는 중…')];
   if (state.kind === 'too_long') {
     return [doc.createTextNode(`선택이 너무 깁니다 (${MAX_QUERY_LENGTH}자 이하)`)];
@@ -45,19 +55,133 @@ function bodyContent(doc: Document, state: CardState, onRetry: () => void): Node
   const { result } = state;
   switch (result.status) {
     case 'found':
-      return result.isDisambiguation
-        ? [message(doc, '뜻이 여러 개인 단어입니다'), wikiLink(doc, result.url)]
-        : [
-            element(doc, 'p', { className: 'card-extract', role: 'extract', text: result.extract }),
-            wikiLink(doc, result.url),
-          ];
+      return foundContent(doc, result, handlers.onSelectMeaning);
     case 'not_found':
       return [doc.createTextNode('위키백과에 문서가 없습니다')];
     case 'rate_limited':
       return [doc.createTextNode('요청이 많아 잠시 막혔습니다. 잠시 후 다시 시도해 주세요')];
     case 'network_error':
-      return [doc.createTextNode('연결에 실패했습니다'), retryButton(doc, onRetry)];
+      return [doc.createTextNode('연결에 실패했습니다'), retryButton(doc, handlers.onRetry)];
   }
+}
+
+function foundContent(
+  doc: Document,
+  result: FoundResult,
+  onSelect: (title: string) => void,
+): Node[] {
+  if (!result.isDisambiguation) {
+    return [
+      element(doc, 'p', { className: 'card-extract', role: 'extract', text: result.extract }),
+      wikiLink(doc, result.url),
+    ];
+  }
+  if (!result.disambiguation) {
+    return [message(doc, '뜻이 여러 개인 단어입니다'), wikiLink(doc, result.url)];
+  }
+  return [
+    ...disambiguationContent(doc, result.disambiguation, result.suggestion, onSelect),
+    wikiLink(doc, result.url),
+  ];
+}
+
+function disambiguationContent(
+  doc: Document,
+  info: DisambiguationInfo,
+  suggestion: SenseCandidate | undefined,
+  onSelect: (title: string) => void,
+): Node[] {
+  const others = info.meanings.filter(
+    (meaning) => meaning.title === null || meaning.title !== suggestion?.title,
+  );
+  const basic = info.basic.map((line) =>
+    element(doc, 'p', { className: 'card-basic', role: 'basic', text: line }),
+  );
+  return [
+    ...(suggestion ? suggestionBlock(doc, suggestion, onSelect) : []),
+    ...(basic.length > 0 ? [sectionTitle(doc, '기본 뜻'), ...basic] : []),
+    ...(others.length > 0
+      ? [sectionTitle(doc, '다른 뜻'), ...meaningList(doc, others, onSelect)]
+      : []),
+  ];
+}
+
+function suggestionBlock(
+  doc: Document,
+  suggestion: SenseCandidate,
+  onSelect: (title: string) => void,
+): Node[] {
+  return [
+    sectionTitle(doc, '이 글에서는 아마'),
+    meaningButton(doc, suggestion.title, suggestion.title, 'suggestion', onSelect),
+    element(doc, 'p', {
+      className: 'card-suggestion-extract',
+      role: 'suggestion-extract',
+      text: suggestion.extract,
+    }),
+  ];
+}
+
+function meaningList(
+  doc: Document,
+  meanings: Meaning[],
+  onSelect: (title: string) => void,
+): Node[] {
+  const list = element(doc, 'ul', { className: 'card-meanings', role: 'meanings' });
+  list.append(
+    ...meanings.slice(0, MAX_MEANINGS).map((meaning) => meaningItem(doc, meaning, onSelect)),
+  );
+  const hidden = meanings.length - MAX_MEANINGS;
+  return hidden > 0
+    ? [
+        list,
+        element(doc, 'p', {
+          className: 'card-more',
+          role: 'more-meanings',
+          text: `외 ${hidden}개`,
+        }),
+      ]
+    : [list];
+}
+
+function meaningItem(
+  doc: Document,
+  meaning: Meaning,
+  onSelect: (title: string) => void,
+): HTMLElement {
+  const item = element(doc, 'li', {});
+  item.append(
+    meaning.title === null
+      ? element(doc, 'span', {
+          className: 'card-meaning-text',
+          role: 'meaning-text',
+          text: shorten(meaning.label),
+        })
+      : meaningButton(doc, meaning.label, meaning.title, 'meaning', onSelect),
+  );
+  return item;
+}
+
+function meaningButton(
+  doc: Document,
+  label: string,
+  title: string,
+  role: string,
+  onSelect: (title: string) => void,
+): HTMLElement {
+  const button = element(doc, 'button', { className: 'card-meaning', role, text: shorten(label) });
+  button.setAttribute('type', 'button');
+  button.addEventListener('click', () => onSelect(title));
+  return button;
+}
+
+function sectionTitle(doc: Document, text: string): HTMLElement {
+  return element(doc, 'p', { className: 'card-section-title', text });
+}
+
+function shorten(text: string): string {
+  const chars = Array.from(text);
+  return chars.length > MAX_LABEL_LENGTH ? `${chars.slice(0, MAX_LABEL_LENGTH).join('')}…` : text;
 }
 
 function buildHeader(doc: Document, title: string, onClose: () => void): HTMLElement {

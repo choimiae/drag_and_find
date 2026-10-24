@@ -57,6 +57,7 @@ export function createController(deps: ControllerDeps): Controller {
     overlay.showCard(anchor, query, state, {
       onClose: closeAll,
       onRetry: () => void lookUp(query, anchor),
+      onSelectMeaning: (title) => void lookUp(title, anchor),
     });
   }
 
