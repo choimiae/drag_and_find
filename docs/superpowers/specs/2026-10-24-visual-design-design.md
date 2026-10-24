@@ -107,7 +107,7 @@ DEFAULT_SETTINGS = { showIcon: true, theme: 'auto' }
 ### 6.3 설정 화면
 - 설정 화면 자체는 크롬 모드를 따른다(`prefers-color-scheme`). 카드 테마 설정과는 별개
 - 테마: 라디오 버튼 3개를 세 칸 선택 버튼 모양으로 꾸민다(`fieldset` + `legend`, 키보드로 고를 수 있음)
-- 아이콘 켜기: 기존 체크박스를 스위치 모양으로 꾸민다(`role="switch"`)
+- 아이콘 켜기: 기존 체크박스를 스위치 모양으로 꾸민다(`role="switch"`). 체크박스 자체의 켜짐 상태가 그대로 전달되므로 `aria-checked`를 따로 맞추지 않는다
 - 저장 실패 시 직전 값으로 되돌리는 기존 규칙을 테마에도 적용한다
 
 ## 7. 아이콘
@@ -127,7 +127,7 @@ DEFAULT_SETTINGS = { showIcon: true, theme: 'auto' }
 
 ### 단위
 - `parseSettings`: 테마 세 값, 잘못된 값 → `'auto'`, 테마 없는 예전 값
-- 설정 화면: 저장된 테마 표시, 테마 바꾸면 저장, 저장 실패 시 되돌림, 스위치 `aria-checked` 동기화
+- 설정 화면: 저장된 테마 표시, 테마 바꾸면 저장, 저장 실패 시 되돌림, 아이콘 켜기 체크박스가 `role="switch"`
 - 오버레이: `setTheme`이 호스트 `data-theme`을 바꿈, 아이콘이 SVG를 담고 이모지 글자가 없음
 - 카드: 배지가 뜻 모음에서만 보임, 기존 `data-role` 유지, 외부 글자 `textContent`
 - 페이지 쪽: 시작 시 테마 적용, 저장소 변경 시 다시 적용, 읽기 실패 시 `'auto'`
