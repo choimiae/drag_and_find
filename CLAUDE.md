@@ -1,5 +1,9 @@
 # drag_and_find
 
+> **응답 언어: 사용자에게 보이는 모든 응답은 한국어로 쓴다. 예외 없음.**
+> 영어로 된 도구 결과·서브에이전트 보고를 읽은 직후에도 마찬가지다. 보내기 전에 언어를 확인한다.
+> 코드·명령어·고유명사만 원어 그대로 둔다.
+
 ## 개발 워크플로우 — Superpowers
 
 이 프로젝트는 **Superpowers 플러그인**(`superpowers@claude-plugins-official`, `.claude/settings.json`에서 활성화)의
