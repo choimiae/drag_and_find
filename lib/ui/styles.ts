@@ -137,6 +137,8 @@ export const OVERLAY_CSS = `
   text-decoration: none;
 }
 .card-link:hover, .card-link:focus-visible { text-decoration: underline; }
+.card-attribution { margin: 4px 0 0; color: var(--dnf-muted); font-size: 11px; text-align: right; }
+.card-license { color: inherit; text-decoration: underline; }
 .card button:focus-visible, .card a:focus-visible { outline: 2px solid var(--dnf-accent); outline-offset: 2px; }
 .card-retry {
   margin-left: 6px;

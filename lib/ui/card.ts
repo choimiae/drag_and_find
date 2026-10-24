@@ -13,6 +13,7 @@ export type CardState =
 
 const MAX_MEANINGS = 8;
 const MAX_LABEL_LENGTH = 40;
+const LICENSE_URL = 'https://creativecommons.org/licenses/by-sa/4.0/deed.ko';
 
 export interface CardHandlers {
   onClose(): void;
@@ -80,14 +81,16 @@ function foundContent(
     return [
       element(doc, 'p', { className: 'card-extract', role: 'extract', text: result.extract }),
       wikiLink(doc, result.url),
+      attribution(doc),
     ];
   }
   if (!result.disambiguation) {
-    return [message(doc, '뜻이 여러 개인 단어입니다'), wikiLink(doc, result.url)];
+    return [message(doc, '뜻이 여러 개인 단어입니다'), wikiLink(doc, result.url), attribution(doc)];
   }
   return [
     ...disambiguationContent(doc, result.disambiguation, result.suggestion, onSelect),
     wikiLink(doc, result.url),
+    attribution(doc),
   ];
 }
 
@@ -245,6 +248,17 @@ function message(doc: Document, text: string): HTMLElement {
 
 function wikiLink(doc: Document, url: string): HTMLElement {
   return externalLink(doc, url, '위키백과에서 보기 →', 'wiki-link', 'card-link');
+}
+
+/** 위키백과 글을 보여 줄 때 붙이는 출처·라이선스 표기. */
+function attribution(doc: Document): HTMLElement {
+  const line = element(doc, 'p', { className: 'card-attribution', role: 'attribution' });
+  line.append(
+    doc.createTextNode('출처: 위키백과 ('),
+    externalLink(doc, LICENSE_URL, 'CC BY-SA 4.0', 'license-link', 'card-license'),
+    doc.createTextNode(')'),
+  );
+  return line;
 }
 
 function retryButton(doc: Document, onRetry: () => void): HTMLElement {

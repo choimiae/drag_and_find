@@ -318,4 +318,51 @@ describe('design details', () => {
     expect(part('google')?.getAttribute('aria-label')).toBe('구글 검색');
     expect(part('naver')?.getAttribute('aria-label')).toBe('네이버 검색');
   });
+  describe('Wikipedia attribution', () => {
+    const attributionTextOf = () => part('attribution')?.textContent;
+
+    it('shows the source line with a license link for a normal article', () => {
+      renderCard(
+        card,
+        'SaaS',
+        {
+          kind: 'result',
+          result: { status: 'found', title: 'SaaS', extract: '설명', url, isDisambiguation: false },
+        },
+        handlers,
+      );
+
+      expect(attributionTextOf()).toBe('출처: 위키백과 (CC BY-SA 4.0)');
+      const license = part('attribution')?.querySelector('a');
+      expect(license?.textContent).toBe('CC BY-SA 4.0');
+      expect(license?.getAttribute('href')).toBe(
+        'https://creativecommons.org/licenses/by-sa/4.0/deed.ko',
+      );
+      expect(license?.getAttribute('target')).toBe('_blank');
+      expect(license?.getAttribute('rel')).toBe('noopener noreferrer');
+    });
+
+    it('shows the source line on disambiguation results', () => {
+      renderCard(card, '트리거', disambiguation(), handlers);
+
+      expect(attributionTextOf()).toBe('출처: 위키백과 (CC BY-SA 4.0)');
+    });
+
+    it('is absent when nothing from Wikipedia is shown', () => {
+      renderCard(card, '온보딩', { kind: 'loading' }, handlers);
+      expect(part('attribution')).toBeNull();
+
+      renderCard(card, 'x', { kind: 'result', result: { status: 'not_found' } }, handlers);
+      expect(part('attribution')).toBeNull();
+
+      renderCard(card, 'x', { kind: 'result', result: { status: 'rate_limited' } }, handlers);
+      expect(part('attribution')).toBeNull();
+
+      renderCard(card, 'x', { kind: 'result', result: { status: 'network_error' } }, handlers);
+      expect(part('attribution')).toBeNull();
+
+      renderCard(card, 'x', { kind: 'too_long' }, handlers);
+      expect(part('attribution')).toBeNull();
+    });
+  });
 });
