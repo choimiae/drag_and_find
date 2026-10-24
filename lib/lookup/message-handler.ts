@@ -1,4 +1,4 @@
-import { isLookupRequest } from '../messages';
+import { MAX_CONTEXT_LENGTH, isLookupRequest } from '../messages';
 import type { LookupService } from './service';
 import type { LookupResult } from './types';
 
@@ -6,5 +6,8 @@ import type { LookupResult } from './types';
 export function createLookupMessageHandler(
   lookup: LookupService,
 ): (message: unknown) => Promise<LookupResult> | undefined {
-  return (message) => (isLookupRequest(message) ? lookup(message.query) : undefined);
+  return (message) =>
+    isLookupRequest(message)
+      ? lookup(message.query, message.context?.slice(0, MAX_CONTEXT_LENGTH))
+      : undefined;
 }

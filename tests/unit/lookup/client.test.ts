@@ -14,6 +14,14 @@ describe('createLookupClient', () => {
     expect(result).toEqual({ status: 'not_found' });
   });
 
+  it('sends the context when given', async () => {
+    const send = vi.fn<Send>(async () => ({ status: 'not_found' }));
+
+    await createLookupClient(send)('트리거', '앞뒤 문맥');
+
+    expect(send).toHaveBeenCalledWith({ type: 'lookup', query: '트리거', context: '앞뒤 문맥' });
+  });
+
   it('returns network_error when the extension connection is gone', async () => {
     const send = vi.fn<Send>(async () => {
       throw new Error('Extension context invalidated.');

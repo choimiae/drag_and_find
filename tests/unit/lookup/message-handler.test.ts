@@ -8,7 +8,16 @@ describe('createLookupMessageHandler', () => {
     const handle = createLookupMessageHandler(lookup);
 
     expect(await handle({ type: 'lookup', query: '갓생' })).toEqual({ status: 'not_found' });
-    expect(lookup).toHaveBeenCalledWith('갓생');
+    expect(lookup).toHaveBeenCalledWith('갓생', undefined);
+  });
+
+  it('passes the context, cut to the maximum length', async () => {
+    const lookup = vi.fn<LookupService>(async () => ({ status: 'not_found' }));
+    const handle = createLookupMessageHandler(lookup);
+
+    await handle({ type: 'lookup', query: '트리거', context: '가'.repeat(300) });
+
+    expect(lookup).toHaveBeenCalledWith('트리거', '가'.repeat(250));
   });
 
   it('ignores other messages', () => {
