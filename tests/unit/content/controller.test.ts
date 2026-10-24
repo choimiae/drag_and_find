@@ -134,7 +134,7 @@ describe('mouse selection', () => {
     overlay.showIcon.mock.calls[0]?.[1]();
     await settle();
 
-    expect(requestLookup).toHaveBeenCalledWith('온보딩');
+    expect(requestLookup).toHaveBeenCalledWith('온보딩', expect.any(String));
     expect(overlay.showCard.mock.calls[0]?.[2]).toEqual({ kind: 'loading' });
     expect(lastCardState(overlay)).toEqual({ kind: 'result', result: FOUND });
     expect(overlay.hideIcon).toHaveBeenCalled();
@@ -183,7 +183,7 @@ describe('shortcut', () => {
     controller.handleShortcut();
     await settle();
 
-    expect(requestLookup).toHaveBeenCalledWith('온보딩');
+    expect(requestLookup).toHaveBeenCalledWith('온보딩', expect.any(String));
   });
 
   it('shows the too-long card without looking up', () => {
@@ -271,7 +271,45 @@ describe('late responses', () => {
     await settle();
 
     expect(requestLookup).toHaveBeenCalledTimes(2);
-    expect(requestLookup).toHaveBeenLastCalledWith('온보딩');
+    expect(requestLookup).toHaveBeenLastCalledWith('온보딩', expect.any(String));
+  });
+});
+
+describe('context and meanings', () => {
+  it('sends the surrounding paragraph as context', async () => {
+    const { requestLookup, controller } = setup();
+    selectContentsOf('term');
+
+    controller.handleShortcut();
+    await settle();
+
+    expect(requestLookup).toHaveBeenCalledWith('온보딩', '요즘 온보딩 과정을 다룬다.');
+  });
+
+  it('looks up a chosen meaning at the same place without context', async () => {
+    const { overlay, requestLookup, controller } = setup();
+    selectContentsOf('term');
+    controller.handleShortcut();
+    await settle();
+    const anchor = overlay.showCard.mock.calls.at(-1)?.[0];
+
+    overlay.showCard.mock.calls.at(-1)?.[3].onSelectMeaning('데이터베이스 트리거');
+    await settle();
+
+    expect(requestLookup).toHaveBeenLastCalledWith('데이터베이스 트리거', undefined);
+    expect(overlay.showCard.mock.calls.at(-1)?.[0]).toEqual(anchor);
+  });
+
+  it('retries with the same context', async () => {
+    const { overlay, requestLookup, controller } = setup();
+    selectContentsOf('term');
+    controller.handleShortcut();
+    await settle();
+
+    overlay.showCard.mock.calls.at(-1)?.[3].onRetry();
+    await settle();
+
+    expect(requestLookup).toHaveBeenLastCalledWith('온보딩', '요즘 온보딩 과정을 다룬다.');
   });
 });
 

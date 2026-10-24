@@ -1,5 +1,6 @@
 import { DEFAULT_SETTINGS } from '../settings';
 import type { LookupResult } from '../lookup/types';
+import { blockTextOf, extractContext } from './context';
 import { checkSelection, isInEditableContext } from '../selection';
 import type { CardState } from '../ui/card';
 import type { DocumentRect, Overlay } from '../ui/overlay';
@@ -7,7 +8,7 @@ import type { DocumentRect, Overlay } from '../ui/overlay';
 export interface ControllerDeps {
   win: Window;
   overlay: Overlay;
-  requestLookup(query: string): Promise<LookupResult>;
+  requestLookup(query: string, context?: string): Promise<LookupResult>;
   isIconEnabled(): Promise<boolean>;
 }
 
@@ -20,6 +21,7 @@ export interface Controller {
 
 interface SelectionSnapshot {
   text: string;
+  context: string;
   anchor: DocumentRect;
 }
 
@@ -37,6 +39,7 @@ export function createController(deps: ControllerDeps): Controller {
     const last = rects[rects.length - 1] ?? range.getBoundingClientRect();
     return {
       text: selection.toString(),
+      context: extractContext(blockTextOf(selection.anchorNode), selection.toString()),
       // 문서 좌표로 저장해 두면 카드가 뜨기 전에 스크롤돼도 단어 옆에 놓인다.
       anchor: {
         top: last.top + win.scrollY,
@@ -53,22 +56,23 @@ export function createController(deps: ControllerDeps): Controller {
     overlay.hideIcon();
   }
 
-  function showCard(anchor: DocumentRect, query: string, state: CardState): void {
+  function showCard(anchor: DocumentRect, query: string, state: CardState, context?: string): void {
     overlay.showCard(anchor, query, state, {
       onClose: closeAll,
-      onRetry: () => void lookUp(query, anchor),
+      onRetry: () => void lookUp(query, anchor, context),
+      // 다른 뜻은 제목 그대로 찾으므로 문맥으로 다시 고를 필요가 없다.
       onSelectMeaning: (title) => void lookUp(title, anchor),
     });
   }
 
-  async function lookUp(query: string, anchor: DocumentRect): Promise<void> {
+  async function lookUp(query: string, anchor: DocumentRect, context?: string): Promise<void> {
     latestRequestId += 1;
     const requestId = latestRequestId;
     overlay.hideIcon();
-    showCard(anchor, query, { kind: 'loading' });
-    const result = await deps.requestLookup(query);
+    showCard(anchor, query, { kind: 'loading' }, context);
+    const result = await deps.requestLookup(query, context);
     if (requestId !== latestRequestId) return;
-    showCard(anchor, query, { kind: 'result', result });
+    showCard(anchor, query, { kind: 'result', result }, context);
   }
 
   async function isIconEnabledSafely(): Promise<boolean> {
@@ -88,7 +92,10 @@ export function createController(deps: ControllerDeps): Controller {
       overlay.hideIcon();
       return;
     }
-    overlay.showIcon(snapshot.anchor, () => void lookUp(check.query, snapshot.anchor));
+    overlay.showIcon(
+      snapshot.anchor,
+      () => void lookUp(check.query, snapshot.anchor, snapshot.context),
+    );
   }
 
   return {
@@ -116,7 +123,7 @@ export function createController(deps: ControllerDeps): Controller {
         showCard(snapshot.anchor, '', { kind: 'too_long' });
         return;
       }
-      void lookUp(check.query, snapshot.anchor);
+      void lookUp(check.query, snapshot.anchor, snapshot.context);
     },
   };
 }
