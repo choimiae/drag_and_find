@@ -15,13 +15,13 @@ interface Scored {
  */
 export function pickSense(
   context: string,
-  word: string,
+  words: string[],
   candidates: SenseCandidate[],
 ): SenseCandidate | null {
   if (!context.trim() || candidates.length === 0) return null;
-  const contextPieces = twoLetterPieces(context, word);
+  const contextPieces = twoLetterPieces(context, words);
   const [best, second] = candidates
-    .map((candidate) => scoreCandidate(contextPieces, candidate, word))
+    .map((candidate) => scoreCandidate(contextPieces, candidate, words))
     .sort((a, b) => b.score - a.score);
   if (!best || best.overlap < MIN_OVERLAP) return null;
   return best.score >= (second?.score ?? 0) * MIN_LEAD_RATIO ? best.candidate : null;
@@ -30,19 +30,19 @@ export function pickSense(
 function scoreCandidate(
   contextPieces: Set<string>,
   candidate: SenseCandidate,
-  word: string,
+  words: string[],
 ): Scored {
-  const pieces = twoLetterPieces(`${candidate.title} ${candidate.extract}`, word);
+  const pieces = twoLetterPieces(`${candidate.title} ${candidate.extract}`, words);
   const overlap = [...pieces].filter((piece) => contextPieces.has(piece)).length;
   return { candidate, overlap, score: pieces.size > 0 ? overlap / Math.sqrt(pieces.size) : 0 };
 }
 
-function twoLetterPieces(text: string, word: string): Set<string> {
-  const cleaned = text
-    .split(word)
-    .join(' ')
-    .toLowerCase()
-    .replace(/[^\p{L}\p{N}_]/gu, '');
-  const chars = Array.from(cleaned);
+function twoLetterPieces(text: string, words: string[]): Set<string> {
+  // 대소문자가 달라도 지워지도록 먼저 소문자로 바꾼 뒤 단어를 지운다.
+  const withoutWords = words
+    .map((word) => word.toLowerCase())
+    .filter((word) => word !== '')
+    .reduce((rest, word) => rest.split(word).join(' '), text.toLowerCase());
+  const chars = Array.from(withoutWords.replace(/[^\p{L}\p{N}_]/gu, ''));
   return new Set(chars.slice(0, -1).map((char, index) => char + (chars[index + 1] ?? '')));
 }

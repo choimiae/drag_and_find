@@ -62,7 +62,7 @@ const CASES: Array<[number, string, string, string | null]> = [
 
 describe('pickSense on the recorded sample', () => {
   it.each(CASES)('case %i (%s)', (_id, word, context, expected) => {
-    expect(pickSense(context, word, candidatesOf(word))?.title ?? null).toBe(expected);
+    expect(pickSense(context, [word], candidatesOf(word))?.title ?? null).toBe(expected);
   });
 });
 
@@ -76,27 +76,39 @@ describe('pickSense rules', () => {
   const gun = { title: '방아쇠', extract: '총의 격발 장치', url };
 
   it('returns nothing without context', () => {
-    expect(pickSense('', '트리거', [database, gun])).toBeNull();
-    expect(pickSense('   ', '트리거', [database, gun])).toBeNull();
+    expect(pickSense('', ['트리거'], [database, gun])).toBeNull();
+    expect(pickSense('   ', ['트리거'], [database, gun])).toBeNull();
   });
 
   it('returns nothing without candidates', () => {
-    expect(pickSense('테이블에 행이 추가될 때 트리거', '트리거', [])).toBeNull();
+    expect(pickSense('테이블에 행이 추가될 때 트리거', ['트리거'], [])).toBeNull();
   });
 
   it('needs at least three shared two-letter pieces', () => {
-    expect(pickSense('테이블 트리거', '트리거', [database, gun])).toBeNull();
+    expect(pickSense('테이블 트리거', ['트리거'], [database, gun])).toBeNull();
   });
 
   it('needs a clear lead over the second candidate', () => {
     const twin = { ...database, title: '데이터베이스 트리거 2' };
 
-    expect(pickSense('테이블에 행이 추가될 때 트리거', '트리거', [database, twin])).toBeNull();
+    expect(pickSense('테이블에 행이 추가될 때 트리거', ['트리거'], [database, twin])).toBeNull();
   });
 
   it('ignores the looked-up word itself when comparing', () => {
     const echo = { title: '트리거 트리거', extract: '트리거 트리거 트리거', url };
 
-    expect(pickSense('트리거 트리거 트리거', '트리거', [echo, gun])).toBeNull();
+    expect(pickSense('트리거 트리거 트리거', ['트리거'], [echo, gun])).toBeNull();
+  });
+
+  it('removes the word regardless of letter case', () => {
+    const echo = { title: 'cpu', extract: 'CPU CPU CPU CPU', url };
+
+    expect(pickSense('CPU CPU CPU', ['cpu'], [echo, gun])).toBeNull();
+  });
+
+  it('removes every given word', () => {
+    const echo = { title: '다른 제목', extract: 'abcd abcd abcd', url };
+
+    expect(pickSense('abcd abcd abcd', ['트리거', 'abcd'], [echo, gun])).toBeNull();
   });
 });

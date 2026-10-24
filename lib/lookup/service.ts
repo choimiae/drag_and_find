@@ -16,7 +16,7 @@ export function createLookupService(provider: LookupProvider, cache: LookupCache
     if (!cached && isWorthCaching(result)) {
       await cache.set(key, result).catch(() => undefined); // 캐시는 속도를 위한 것이라 저장 실패로 찾은 결과를 버리지 않는다
     }
-    return withSuggestion(result, context);
+    return withSuggestion(result, query, context);
   };
 }
 
@@ -25,8 +25,12 @@ function isWorthCaching(result: LookupResult): boolean {
   return !(result.status === 'found' && result.isDisambiguation && !result.disambiguation);
 }
 
-function withSuggestion(result: LookupResult, context: string | undefined): LookupResult {
+function withSuggestion(
+  result: LookupResult,
+  query: string,
+  context: string | undefined,
+): LookupResult {
   if (result.status !== 'found' || !result.disambiguation || !context) return result;
-  const suggestion = pickSense(context, result.title, result.disambiguation.candidates);
+  const suggestion = pickSense(context, [query, result.title], result.disambiguation.candidates);
   return suggestion ? { ...result, suggestion } : result;
 }

@@ -123,6 +123,19 @@ describe('suggestions', () => {
     expect(second.status === 'found' && second.suggestion?.title).toBe('방아쇠');
   });
 
+  it('removes the query word too when the title differs from the query', async () => {
+    const echo = { title: '데이터베이스 트리거', extract: 'xyzw xyzw xyzw', url };
+    const redirected: LookupResult = {
+      ...TRIGGER,
+      disambiguation: { ...INFO, candidates: [echo, GUN] },
+    };
+    const lookup = createLookupService(fakeProvider(redirected), createLookupCache(memoryArea()));
+
+    const result = await lookup('xyzw', 'xyzw xyzw xyzw');
+
+    expect(result.status === 'found' && result.suggestion).toBeFalsy();
+  });
+
   it('gives no suggestion without context', async () => {
     const lookup = createLookupService(fakeProvider(TRIGGER), createLookupCache(memoryArea()));
 
