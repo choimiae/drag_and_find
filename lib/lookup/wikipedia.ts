@@ -23,7 +23,7 @@ interface SearchResponse {
 const EXCLUDED_CANDIDATE_TITLES = new Set(['위키낱말사전']);
 
 interface ExtractsResponse {
-  query?: { pages?: Record<string, { title?: string; extract?: string }> };
+  query?: { pages?: Record<string, { title?: string; extract?: string; missing?: string }> };
 }
 
 class RateLimitedError extends Error {}
@@ -106,23 +106,21 @@ export function createWikipediaKoProvider({
       ]);
       const text = textPages?.[0]?.extract;
       if (text === undefined || linkedPages === null) return null;
-      const candidates = linkedPages.flatMap((page) =>
-        page.title &&
-        page.extract &&
+      const isLinkable = <P extends { title?: string }>(page: P): page is P & { title: string } =>
+        typeof page.title === 'string' &&
         page.title !== title &&
-        !EXCLUDED_CANDIDATE_TITLES.has(page.title)
+        !EXCLUDED_CANDIDATE_TITLES.has(page.title);
+      const candidates = linkedPages.flatMap((page) =>
+        isLinkable(page) && page.extract
           ? [{ title: page.title, extract: page.extract, url: wikiUrl(page.title) }]
           : [],
       );
+      // 넘겨주기 문서는 첫 문단이 비어 있어도 실제로 있는 문서라 눌러서 열 수 있다.
+      const linkedTitles = linkedPages.flatMap((page) =>
+        isLinkable(page) && page.missing === undefined ? [page.title] : [],
+      );
       const { basic, lines } = parseDisambiguationText(text);
-      return {
-        basic,
-        meanings: buildMeanings(
-          lines,
-          candidates.map((c) => c.title),
-        ),
-        candidates,
-      };
+      return { basic, meanings: buildMeanings(lines, linkedTitles), candidates };
     } catch {
       // 뜻 모음 추가 정보는 덤이다. 실패하면 기존처럼 "뜻이 여러 개" 안내만 보여 준다.
       return null;

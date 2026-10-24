@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { buildMeanings, parseDisambiguationText } from '../../../lib/lookup/disambiguation';
-import { pageText } from '../fixtures/disambiguation/load';
+import { linkedResponse, pageText } from '../fixtures/disambiguation/load';
 
 describe('parseDisambiguationText', () => {
   it('takes the basic-meaning section and drops see-also', () => {
@@ -56,5 +56,21 @@ describe('buildMeanings', () => {
 
   it('leaves the title empty when no linked title starts the line', () => {
     expect(buildMeanings(['트리거 전략: 게임 전략'], ['방아쇠'])[0]?.title).toBeNull();
+  });
+
+  it('makes redirect-linked meanings clickable on the real 모델 fixture', () => {
+    const titles = Object.values(linkedResponse('모델').query?.pages ?? {}).flatMap((page) =>
+      page.title &&
+      page.missing === undefined &&
+      page.title !== '모델' &&
+      page.title !== '위키낱말사전'
+        ? [page.title]
+        : [],
+    );
+    const { lines } = parseDisambiguationText(pageText('모델'));
+
+    const meanings = buildMeanings(lines, titles);
+
+    expect(meanings.find((m) => m.label.startsWith('비즈니스 모델'))?.title).toBe('비즈니스 모델');
   });
 });

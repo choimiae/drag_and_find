@@ -4,6 +4,7 @@ import { resolve } from 'node:path';
 interface ApiPage {
   title?: string;
   extract?: string;
+  missing?: string;
 }
 
 interface ApiResponse {

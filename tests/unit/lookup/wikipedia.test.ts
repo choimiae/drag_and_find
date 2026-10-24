@@ -239,6 +239,17 @@ describe('disambiguation pages', () => {
     }
   });
 
+  it('makes meanings that link to redirect pages clickable', async () => {
+    const result = await provider(disambiguationFetch('모델')).lookup('모델');
+
+    if (result.status !== 'found' || !result.disambiguation) throw new Error('no disambiguation');
+    const business = result.disambiguation.meanings.find((m) =>
+      m.label.startsWith('비즈니스 모델'),
+    );
+    expect(business?.title).toBe('비즈니스 모델');
+    expect(result.disambiguation.candidates.map((c) => c.title)).not.toContain('비즈니스 모델');
+  });
+
   it('keeps the plain disambiguation result when an extra request fails', async () => {
     const fetchFn = disambiguationFetch('트리거', {
       linked: () => new Response('', { status: 429 }),
