@@ -4,7 +4,12 @@ import { loadSettings, saveSettings } from '../../lib/settings';
 import { memoryArea } from './memory-area';
 
 const MARKUP = `
-  <input id="show-icon" type="checkbox" />
+  <fieldset id="theme">
+    <input type="radio" name="theme" value="auto" id="theme-auto" />
+    <input type="radio" name="theme" value="light" id="theme-light" />
+    <input type="radio" name="theme" value="dark" id="theme-dark" />
+  </fieldset>
+  <input id="show-icon" type="checkbox" role="switch" />
   <span id="shortcut"></span>
   <button id="change-shortcut" type="button"></button>`;
 
@@ -135,4 +140,63 @@ describe('initOptionsPage', () => {
 
     await expect(initOptionsPage(document, deps())).rejects.toThrow('#show-icon');
   });
+});
+
+describe('theme', () => {
+  const radio = (theme: string) => document.getElementById(`theme-${theme}`) as HTMLInputElement;
+  const choose = (theme: string) => {
+    radio(theme).checked = true;
+    radio(theme).dispatchEvent(new Event('change'));
+  };
+
+  it('selects "follow Chrome" when nothing is stored', async () => {
+    await initOptionsPage(document, deps());
+
+    expect(radio('auto').checked).toBe(true);
+  });
+
+  it('shows the stored theme', async () => {
+    const area = memoryArea();
+    await saveSettings(area, { showIcon: true, theme: 'dark' });
+
+    await initOptionsPage(document, deps({ area }));
+
+    expect(radio('dark').checked).toBe(true);
+  });
+
+  it('saves the chosen theme and keeps the icon setting', async () => {
+    const area = memoryArea();
+    await saveSettings(area, { showIcon: false, theme: 'auto' });
+    await initOptionsPage(document, deps({ area }));
+
+    choose('light');
+    await flush();
+
+    expect(await loadSettings(area)).toEqual({ showIcon: false, theme: 'light' });
+  });
+
+  it('puts the previous theme back when saving fails', async () => {
+    const area = memoryArea();
+    await saveSettings(area, { showIcon: true, theme: 'light' });
+    const failing = { ...area, set: async () => Promise.reject(new Error('quota')) };
+    await initOptionsPage(document, deps({ area: failing }));
+
+    choose('dark');
+    await flush();
+
+    expect(radio('light').checked).toBe(true);
+    expect(radio('dark').checked).toBe(false);
+  });
+
+  it('fails clearly when the theme choices are missing', async () => {
+    document.getElementById('theme')?.remove();
+
+    await expect(initOptionsPage(document, deps())).rejects.toThrow('#theme');
+  });
+});
+
+it('exposes the icon toggle as a switch', async () => {
+  await initOptionsPage(document, deps());
+
+  expect(document.getElementById('show-icon')?.getAttribute('role')).toBe('switch');
 });
