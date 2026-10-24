@@ -117,3 +117,36 @@ test('문맥상 뜻을 누르면 그 뜻의 요약으로 카드가 바뀐다', a
   await expect(role(page, 'title')).toHaveText('데이터베이스 트리거');
   await expect(role(page, 'extract')).toContainText('자동으로 실행되는 절차');
 });
+
+test('기본 테마는 크롬 설정 따라가기다', async ({ page }) => {
+  await page.goto(ARTICLE_URL);
+  await page.locator('#known').dblclick();
+  await expect(role(page, 'icon')).toBeVisible();
+
+  await expect(page.locator('drag-and-find-root')).toHaveAttribute('data-theme', 'auto');
+});
+
+test('설정에서 어둡게를 고르면 이미 열린 탭의 카드도 바로 어두워진다', async ({
+  page,
+  context,
+  extensionId,
+  serviceWorker,
+}) => {
+  await page.goto(ARTICLE_URL);
+  const options = await context.newPage();
+  await options.goto(`chrome-extension://${extensionId}/options.html`);
+
+  await options.locator('label[for="theme-dark"]').click();
+  await expect
+    .poll(() =>
+      serviceWorker.evaluate(
+        `chrome.storage.local.get('settings').then((stored) => stored.settings?.theme)`,
+      ),
+    )
+    .toBe('dark');
+
+  await page.bringToFront();
+  await page.locator('#known').dblclick();
+  await expect(role(page, 'icon')).toBeVisible();
+  await expect(page.locator('drag-and-find-root')).toHaveAttribute('data-theme', 'dark');
+});
