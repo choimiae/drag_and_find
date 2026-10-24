@@ -200,3 +200,73 @@ it('exposes the icon toggle as a switch', async () => {
 
   expect(document.getElementById('show-icon')?.getAttribute('role')).toBe('switch');
 });
+
+describe('overlapping changes', () => {
+  const radio = (theme: string) => document.getElementById(`theme-${theme}`) as HTMLInputElement;
+  const chooseDark = () => {
+    radio('dark').checked = true;
+    radio('dark').dispatchEvent(new Event('change'));
+  };
+  const switchOff = () => {
+    checkbox().checked = false;
+    checkbox().dispatchEvent(new Event('change'));
+  };
+
+  it('keeps both changes when the switch is toggled right after the theme', async () => {
+    const area = memoryArea();
+    await initOptionsPage(document, deps({ area }));
+
+    chooseDark();
+    switchOff();
+    await flush();
+
+    expect(await loadSettings(area)).toEqual({ showIcon: false, theme: 'dark' });
+  });
+
+  it('keeps the newer switch value when only the earlier save fails', async () => {
+    const stored = memoryArea();
+    let calls = 0;
+    const area = {
+      get: stored.get,
+      set: async (items: Record<string, unknown>) => {
+        calls += 1;
+        if (calls === 1) throw new Error('quota');
+        await stored.set(items);
+      },
+    };
+    await initOptionsPage(document, deps({ area }));
+
+    chooseDark();
+    switchOff();
+    await flush();
+
+    expect(checkbox().checked).toBe(false);
+    expect(radio('dark').checked).toBe(true);
+    expect(await loadSettings(stored)).toEqual({ showIcon: false, theme: 'dark' });
+  });
+
+  it('keeps a change made before loading finishes', async () => {
+    const stored = memoryArea();
+    await saveSettings(stored, { showIcon: true, theme: 'light' });
+    let release: () => void = () => undefined;
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const area = {
+      get: async (key: string) => {
+        await gate;
+        return stored.get(key);
+      },
+      set: stored.set,
+    };
+    const ready = initOptionsPage(document, deps({ area }));
+
+    switchOff();
+    release();
+    await ready;
+    await flush();
+
+    expect(checkbox().checked).toBe(false);
+    expect(await loadSettings(stored)).toEqual({ showIcon: false, theme: 'auto' });
+  });
+});
