@@ -27,7 +27,7 @@ beforeEach(() => {
 describe('initOptionsPage', () => {
   it('shows the stored icon setting', async () => {
     const area = memoryArea();
-    await saveSettings(area, { showIcon: false });
+    await saveSettings(area, { showIcon: false, theme: 'auto' });
 
     await initOptionsPage(document, deps({ area }));
 
@@ -42,7 +42,7 @@ describe('initOptionsPage', () => {
     checkbox().dispatchEvent(new Event('change'));
     await flush();
 
-    expect(await loadSettings(area)).toEqual({ showIcon: false });
+    expect(await loadSettings(area)).toEqual({ showIcon: false, theme: 'auto' });
   });
 
   it('shows the current shortcut', async () => {
@@ -96,7 +96,7 @@ describe('initOptionsPage', () => {
     checkbox().dispatchEvent(new Event('change'));
     await flush();
 
-    expect(await loadSettings(stored)).toEqual({ showIcon: false });
+    expect(await loadSettings(stored)).toEqual({ showIcon: false, theme: 'auto' });
   });
 
   it('puts the checkbox back when saving fails', async () => {
@@ -127,7 +127,7 @@ describe('initOptionsPage', () => {
     checkbox().dispatchEvent(new Event('change'));
     await flush();
 
-    expect(await loadSettings(area)).toEqual({ showIcon: true });
+    expect(await loadSettings(area)).toEqual({ showIcon: true, theme: 'auto' });
   });
 
   it('fails clearly when the markup is missing', async () => {
