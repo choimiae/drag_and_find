@@ -2,7 +2,7 @@
   "name": "drag-and-find",
   "description": "드래그한 단어의 위키백과 요약을 페이지 위에 바로 보여 주는 크롬 확장",
   "private": true,
-  "version": "0.1.0",
+  "version": "1.0.0",
   "type": "module",
   "scripts": {
     "dev": "wxt",
