@@ -98,3 +98,22 @@ test('글이 내부 프레임에 있어도 드래그 후 아이콘을 누르면 
 
   await expect(frame.locator('[data-role="title"]')).toHaveText('온보딩');
 });
+
+test('뜻이 여러 개인 단어는 문맥상 뜻과 다른 뜻 목록을 보여 준다', async ({ page }) => {
+  await openArticleAndLookUp(page, 'ambiguous');
+
+  await expect(role(page, 'title')).toHaveText('트리거');
+  await expect(role(page, 'suggestion')).toHaveText('데이터베이스 트리거');
+  await expect(role(page, 'basic')).toContainText('총의 방아쇠');
+  await expect(role(page, 'meanings')).toContainText('트리거 (애니메이션 제작사)');
+});
+
+test('문맥상 뜻을 누르면 그 뜻의 요약으로 카드가 바뀐다', async ({ page }) => {
+  await openArticleAndLookUp(page, 'ambiguous');
+  await expect(role(page, 'suggestion')).toBeVisible();
+
+  await role(page, 'suggestion').click();
+
+  await expect(role(page, 'title')).toHaveText('데이터베이스 트리거');
+  await expect(role(page, 'extract')).toContainText('자동으로 실행되는 절차');
+});
