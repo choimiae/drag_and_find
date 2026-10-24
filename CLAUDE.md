@@ -48,6 +48,7 @@
 | 린트 | `pnpm lint` |
 | 포맷 검사 / 적용 | `pnpm format:check` / `pnpm format` |
 | 웹스토어 업로드용 zip | `pnpm zip` |
+| 확장 아이콘 PNG 다시 만들기 (`assets/icon.svg` 수정 후) | `pnpm icons` |
 
 커밋 전 전체 검증: `pnpm format:check && pnpm lint && pnpm compile && pnpm test && pnpm test:e2e`
 
