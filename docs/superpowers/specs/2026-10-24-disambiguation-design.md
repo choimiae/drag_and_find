@@ -90,7 +90,7 @@ interface SenseCandidate {
 interface DisambiguationInfo {
   basic: string[];             // 기본 뜻 문장들 (없으면 빈 배열)
   meanings: Meaning[];         // 목록 순서 그대로
-  candidates: SenseCandidate[]; // title이 있는 항목 중 첫 문단이 있는 것
+  candidates: SenseCandidate[]; // 첫 문단이 있는 연결 문서 (6.2)
 }
 
 type LookupResult =
@@ -115,12 +115,12 @@ type LookupResult =
 interface LookupRequest {
   type: 'lookup';
   query: string;
-  context?: string; // 선택 주변 문맥, 최대 200자
+  context?: string; // 선택 주변 문맥, 최대 250자 (앞 100 + 선택 최대 50 + 뒤 100)
 }
 ```
 
 - `isLookupRequest`: `context`가 있으면 문자열이어야 한다
-- 백그라운드는 200자를 넘는 `context`를 200자로 자른다
+- 백그라운드는 250자를 넘는 `context`를 250자로 자른다
 
 ## 6. 동작
 
@@ -128,6 +128,7 @@ interface LookupRequest {
 - 선택의 `anchorNode`에서 가장 가까운 블록 요소(`p, li, td, dd, blockquote, h1~h6, article, section, div`)의 `textContent`를 쓴다
 - 그 안에서 선택 글자를 찾아 앞 100자 + 선택 + 뒤 100자를 문맥으로 한다
 - 찾지 못하면 블록 글자 앞쪽 200자를 쓴다
+- 블록 글자의 줄바꿈·연속 공백은 공백 하나로 합친다
 - 순수 함수 `extractContext(blockText, selectedText): string`로 분리해 테스트한다
 
 ### 6.2 뜻 모음 정보 얻기 (백그라운드, `WikipediaKoProvider`)
@@ -145,8 +146,11 @@ interface LookupRequest {
 항목과 연결 문서 짝짓기:
 - 첫 문단이 있는 연결 문서 제목 중, 항목 줄이 그 제목으로 **시작하는** 가장 긴 것을 `title`로 한다 (예: "데이터 모델: 데이터의 관계…" → "데이터 모델")
 - 짝이 없으면 `title: null`
-- `candidates` = `title`이 있는 항목의 연결 문서들 (중복 제거, 목록 순서)
-- 설명 문장 안에 걸린 연결 문서(예: "생산", "궁예", "영어")는 어떤 항목의 시작과도 맞지 않으므로 후보에서 자연히 빠진다
+- `candidates` = 첫 문단이 있는 **모든** 연결 문서. 단, 뜻 모음 문서 자신과 "위키낱말사전"은 뺀다
+  - 처음에는 "항목 줄이 그 제목으로 시작하는 것"만 후보로 삼으려 했으나, 같은 시험 문장으로 다시 재 보니 맞힘 4·틀림 2로 나빠졌다
+    ("경제 버블" 줄의 연결 문서는 "거품 경제", "버스 터미널"은 줄 중간에 있음). 모든 연결 문서를 후보로 하면 맞힘 6·틀림 1이다
+  - 설명 문장 안에 걸린 엉뚱한 연결 문서("생산", "궁예" 등)도 후보에 들어가지만, 문맥과 겹치는 글자가 적어 거의 뽑히지 않는다
+- `meanings`의 `title` 짝짓기(누를 수 있는 항목)는 위 "가장 긴 시작 제목" 규칙을 그대로 쓴다
 
 실패 처리:
 - 두 요청 중 하나라도 실패(429·연결 오류·형식 오류)하면 `disambiguation` 없이 기존 결과를 돌려준다
@@ -174,7 +178,7 @@ interface LookupRequest {
 ### 단위
 - `parseDisambiguationText`: 사전 시험에서 받은 실제 문서 글자(모델, 트리거, 버블, 플랫폼, 커널, 마진, 포트, 터미널, 스레드)로 basic·항목·같이 보기 제외 확인
 - 항목·연결 문서 짝짓기: 가장 긴 제목 우선, 설명 속 연결 문서 제외
-- `pickSense`: **사전 시험 13문장 고정 테스트**. 구현 시점에 측정한 맞힘·고르지 않음 결과를 문장별로 기록해 두고, 틀린 선택은 1개 이하여야 한다
+- `pickSense`: **사전 시험 13문장 고정 테스트**. 문장별 기대 결과를 고정한다(맞힘 6 · 틀림 1 · 고르지 않음 6, 틀린 1개는 패션 "모델" → "모델 (드라마)")
 - `extractContext`: 앞뒤 100자, 블록 안에 없을 때, 짧은 블록
 - 제공자: 뜻 모음일 때 요청 3번, 추가 요청 실패 시 기존 결과, 일반 문서는 요청 1번
 - 조회 서비스: 캐시에 `suggestion` 미저장, 문맥마다 선택 재계산, `disambiguation` 없는 뜻 모음은 미저장
