@@ -118,3 +118,29 @@ describe('createOverlay', () => {
     expect(overlay.contains(new MouseEvent('mousedown'))).toBe(false);
   });
 });
+
+describe('theme and icon', () => {
+  it('starts with the auto theme', () => {
+    createOverlay(document, window).showIcon(ANCHOR, vi.fn());
+
+    expect(host()?.dataset.theme).toBe('auto');
+  });
+
+  it('switches the theme on the host', () => {
+    const overlay = createOverlay(document, window);
+    overlay.showIcon(ANCHOR, vi.fn());
+
+    overlay.setTheme('dark');
+
+    expect(host()?.dataset.theme).toBe('dark');
+  });
+
+  it('draws the icon as an SVG instead of an emoji', () => {
+    createOverlay(document, window).showIcon(ANCHOR, vi.fn());
+
+    const icon = inShadow('icon');
+    expect(icon?.querySelector('svg')).not.toBeNull();
+    expect(icon?.textContent).toBe('');
+    expect(icon?.getAttribute('aria-label')).toBe('선택한 단어 찾기');
+  });
+});

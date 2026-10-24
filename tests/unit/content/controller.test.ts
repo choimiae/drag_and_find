@@ -18,6 +18,7 @@ function fakeOverlay() {
     showCard: vi.fn<Overlay['showCard']>(),
     hideCard: vi.fn<Overlay['hideCard']>(),
     contains: vi.fn<Overlay['contains']>(() => false),
+    setTheme: vi.fn<Overlay['setTheme']>(),
   };
 }
 
