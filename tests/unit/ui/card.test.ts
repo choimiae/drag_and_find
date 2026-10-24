@@ -348,6 +348,12 @@ describe('design details', () => {
       expect(attributionTextOf()).toBe('출처: 위키백과 (CC BY-SA 4.0)');
     });
 
+    it('shows the source line on the notice without extra information', () => {
+      renderCard(card, '트리거', disambiguation({ disambiguation: undefined }), handlers);
+
+      expect(attributionTextOf()).toBe('출처: 위키백과 (CC BY-SA 4.0)');
+    });
+
     it('is absent when nothing from Wikipedia is shown', () => {
       renderCard(card, '온보딩', { kind: 'loading' }, handlers);
       expect(part('attribution')).toBeNull();
