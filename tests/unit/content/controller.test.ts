@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { createController, type ControllerDeps } from '../../../lib/content/controller';
 import type { LookupResult } from '../../../lib/lookup/types';
 import type { Overlay } from '../../../lib/ui/overlay';
@@ -139,6 +139,40 @@ describe('mouse selection', () => {
     expect(overlay.showCard.mock.calls[0]?.[2]).toEqual({ kind: 'loading' });
     expect(lastCardState(overlay)).toEqual({ kind: 'result', result: FOUND });
     expect(overlay.hideIcon).toHaveBeenCalled();
+  });
+});
+
+describe('anchor coordinates', () => {
+  const originalScrollY = Object.getOwnPropertyDescriptor(window, 'scrollY')!;
+  afterEach(() => {
+    Object.defineProperty(window, 'scrollY', originalScrollY);
+  });
+
+  it('captures the anchor in document coordinates by adding the scroll at selection time', async () => {
+    Object.defineProperty(window, 'scrollY', { value: 250, configurable: true });
+    const { overlay, controller } = setup();
+    selectContentsOf('term');
+
+    controller.handleMouseUp(new MouseEvent('mouseup'));
+    await settle();
+
+    // happy-dom 은 레이아웃이 없어 선택 영역의 화면 좌표가 0 이므로, 문서 좌표는 스크롤 값과 같다.
+    expect(overlay.showIcon.mock.calls[0]?.[0]).toMatchObject({ top: 250, bottom: 250 });
+  });
+
+  it('passes the same anchor to the card even if the page scrolls before the icon is clicked', async () => {
+    const { overlay, controller } = setup();
+    selectContentsOf('term');
+    controller.handleMouseUp(new MouseEvent('mouseup'));
+    await settle();
+    const iconAnchor = overlay.showIcon.mock.calls[0]?.[0];
+
+    Object.defineProperty(window, 'scrollY', { value: 400, configurable: true });
+    overlay.showIcon.mock.calls[0]?.[1]();
+    await settle();
+
+    expect(overlay.showCard.mock.calls.length).toBeGreaterThan(0);
+    for (const call of overlay.showCard.mock.calls) expect(call[0]).toEqual(iconAnchor);
   });
 });
 

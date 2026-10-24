@@ -1,8 +1,7 @@
 import type { LookupResult } from '../lookup/types';
 import { checkSelection, isInEditableContext } from '../selection';
 import type { CardState } from '../ui/card';
-import type { Overlay } from '../ui/overlay';
-import type { Rect } from '../ui/position';
+import type { DocumentRect, Overlay } from '../ui/overlay';
 
 export interface ControllerDeps {
   win: Window;
@@ -20,7 +19,7 @@ export interface Controller {
 
 interface SelectionSnapshot {
   text: string;
-  anchor: Rect;
+  anchor: DocumentRect;
 }
 
 /** 선택·클릭·키 입력을 받아 아이콘과 카드를 제어한다. 마지막 요청의 결과만 카드에 반영한다. */
@@ -37,7 +36,13 @@ export function createController(deps: ControllerDeps): Controller {
     const last = rects[rects.length - 1] ?? range.getBoundingClientRect();
     return {
       text: selection.toString(),
-      anchor: { top: last.top, left: last.left, bottom: last.bottom, right: last.right },
+      // 문서 좌표로 저장해 두면 카드가 뜨기 전에 스크롤돼도 단어 옆에 놓인다.
+      anchor: {
+        top: last.top + win.scrollY,
+        left: last.left + win.scrollX,
+        bottom: last.bottom + win.scrollY,
+        right: last.right + win.scrollX,
+      },
     };
   }
 
@@ -47,14 +52,14 @@ export function createController(deps: ControllerDeps): Controller {
     overlay.hideIcon();
   }
 
-  function showCard(anchor: Rect, query: string, state: CardState): void {
+  function showCard(anchor: DocumentRect, query: string, state: CardState): void {
     overlay.showCard(anchor, query, state, {
       onClose: closeAll,
       onRetry: () => void lookUp(query, anchor),
     });
   }
 
-  async function lookUp(query: string, anchor: Rect): Promise<void> {
+  async function lookUp(query: string, anchor: DocumentRect): Promise<void> {
     latestRequestId += 1;
     const requestId = latestRequestId;
     overlay.hideIcon();

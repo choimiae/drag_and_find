@@ -74,6 +74,25 @@ describe('createOverlay', () => {
     expect(inShadow('body')?.textContent).toBe('위키백과에 문서가 없습니다');
   });
 
+  it('keeps the card at the same document position when the page scrolls before it is shown', () => {
+    const overlay = createOverlay(document, window);
+    overlay.showCard(ANCHOR, '온보딩', { kind: 'loading' }, handlers());
+    const topBefore = inShadow('card')?.style.top;
+    const leftBefore = inShadow('card')?.style.left;
+
+    const original = Object.getOwnPropertyDescriptor(window, 'scrollY')!;
+    Object.defineProperty(window, 'scrollY', { value: 300, configurable: true });
+    try {
+      overlay.showCard(ANCHOR, '온보딩', { kind: 'loading' }, handlers());
+    } finally {
+      Object.defineProperty(window, 'scrollY', original);
+    }
+
+    expect(topBefore).toBe('128px');
+    expect(inShadow('card')?.style.top).toBe(topBefore);
+    expect(inShadow('card')?.style.left).toBe(leftBefore);
+  });
+
   it('removes the card', () => {
     const overlay = createOverlay(document, window);
 

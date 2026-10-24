@@ -5,10 +5,18 @@ import { OVERLAY_CSS } from './styles';
 export const HOST_TAG = 'drag-and-find-root';
 const TOP_LAYER_Z_INDEX = '2147483647';
 
+/** 문서 기준 사각형(화면 좌표 + 스크롤). `Rect`(화면 기준)와 섞이지 않게 이름을 구분한다. */
+export interface DocumentRect {
+  top: number;
+  left: number;
+  bottom: number;
+  right: number;
+}
+
 export interface Overlay {
-  showIcon(anchor: Rect, onActivate: () => void): void;
+  showIcon(anchor: DocumentRect, onActivate: () => void): void;
   hideIcon(): void;
-  showCard(anchor: Rect, query: string, state: CardState, handlers: CardHandlers): void;
+  showCard(anchor: DocumentRect, query: string, state: CardState, handlers: CardHandlers): void;
   hideCard(): void;
   contains(event: Event): boolean;
 }
@@ -39,6 +47,14 @@ export function createOverlay(doc: Document, win: Window): Overlay {
     scrollY: win.scrollY,
   });
 
+  // 앵커는 문서 좌표로 받는다. 그 사이 스크롤됐어도 현재 스크롤을 빼 화면 좌표로 바꿔야 단어 옆에 놓인다.
+  const toViewportRect = (anchor: DocumentRect): Rect => ({
+    top: anchor.top - win.scrollY,
+    bottom: anchor.bottom - win.scrollY,
+    left: anchor.left - win.scrollX,
+    right: anchor.right - win.scrollX,
+  });
+
   const mount = () => {
     if (!host.isConnected) doc.documentElement.append(host);
   };
@@ -59,7 +75,7 @@ export function createOverlay(doc: Document, win: Window): Overlay {
       button.setAttribute('aria-label', '선택한 단어 찾기');
       button.textContent = '🔍';
       button.addEventListener('click', onActivate);
-      const position = computeIconPosition(anchor, viewport());
+      const position = computeIconPosition(toViewportRect(anchor), viewport());
       place(button, position.top, position.left);
       shadow.append(button);
       icon = button;
@@ -79,7 +95,7 @@ export function createOverlay(doc: Document, win: Window): Overlay {
       renderCard(card, query, state, handlers);
       card.style.maxHeight = '';
       const size = { width: card.offsetWidth, height: card.offsetHeight };
-      const placement = computeCardPlacement(anchor, size, viewport());
+      const placement = computeCardPlacement(toViewportRect(anchor), size, viewport());
       place(card, placement.top, placement.left);
       card.style.maxHeight = `${placement.maxHeight}px`;
     },
