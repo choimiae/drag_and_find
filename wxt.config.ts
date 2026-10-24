@@ -5,7 +5,7 @@ export default defineConfig({
   manifest: {
     name: 'Drag and Find',
     description:
-      '모르는 단어를 드래그하고 🔍 또는 Alt+Shift+F를 누르면 위키백과 요약을 바로 보여 줍니다.',
+      '모르는 단어를 드래그하고 아이콘 또는 Alt+Shift+F를 누르면 위키백과 요약을 바로 보여 줍니다.',
     permissions: ['storage'],
     host_permissions: ['https://ko.wikipedia.org/*'],
     commands: {

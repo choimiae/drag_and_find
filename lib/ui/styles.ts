@@ -82,7 +82,7 @@ export const OVERLAY_CSS = `
 }
 .card-header {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
   gap: 8px;
   padding: 16px 15px 2px;
@@ -109,7 +109,7 @@ export const OVERLAY_CSS = `
   cursor: pointer;
   font-size: 13px;
 }
-.card-close:hover, .card-close:focus-visible { color: var(--dnf-text); outline: none; background: var(--dnf-badge); }
+.card-close:hover, .card-close:focus-visible { color: var(--dnf-text); background: var(--dnf-badge); }
 .card-body { padding: 4px 15px 12px; }
 .card-extract {
   margin: 4px 0 0;
@@ -129,6 +129,7 @@ export const OVERLAY_CSS = `
   text-decoration: none;
 }
 .card-link:hover, .card-link:focus-visible { text-decoration: underline; }
+.card button:focus-visible, .card a:focus-visible { outline: 2px solid var(--dnf-accent); outline-offset: 2px; }
 .card-retry {
   margin-left: 6px;
   padding: 3px 10px;
@@ -146,7 +147,7 @@ export const OVERLAY_CSS = `
   border-radius: 10px;
   background: var(--dnf-accent-soft);
 }
-.card-chip { margin: 0; color: var(--dnf-accent); font-size: 10.5px; font-weight: 700; }
+.card-chip { margin: 0; color: var(--dnf-tag-text); font-size: 10.5px; font-weight: 700; }
 .card-suggestion .card-meaning {
   display: block;
   padding: 0;
@@ -181,7 +182,7 @@ export const OVERLAY_CSS = `
   font-size: 12px;
   text-align: left;
 }
-.card-meanings .card-meaning:hover, .card-meanings .card-meaning:focus-visible { border-color: var(--dnf-accent); outline: none; }
+.card-meanings .card-meaning:hover, .card-meanings .card-meaning:focus-visible { border-color: var(--dnf-accent); }
 .card-meaning-text {
   display: inline-block;
   padding: 4px 10px;
@@ -209,7 +210,7 @@ export const OVERLAY_CSS = `
   text-align: center;
   text-decoration: none;
 }
-.card-action:hover, .card-action:focus-visible { border-color: var(--dnf-accent); outline: none; }
+.card-action:hover, .card-action:focus-visible { border-color: var(--dnf-accent); }
 .card-action-mark { margin-right: 4px; font-weight: 800; }
 .card-action-mark-google { color: #1a73e8; }
 .card-action-mark-naver { color: #03c75a; }
