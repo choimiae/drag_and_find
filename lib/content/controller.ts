@@ -1,3 +1,4 @@
+import { DEFAULT_SETTINGS } from '../settings';
 import type { LookupResult } from '../lookup/types';
 import { checkSelection, isInEditableContext } from '../selection';
 import type { CardState } from '../ui/card';
@@ -74,7 +75,8 @@ export function createController(deps: ControllerDeps): Controller {
       return await deps.isIconEnabled();
     } catch {
       // 확장이 업데이트되면 열려 있던 페이지의 확장 연결이 끊겨 설정을 읽지 못한다.
-      return false;
+      // 아이콘을 숨기면 사용자가 이유를 알 수 없으므로 기본값으로 띄우고, 클릭 시 조회 실패 안내가 뜨게 한다.
+      return DEFAULT_SETTINGS.showIcon;
     }
   }
 

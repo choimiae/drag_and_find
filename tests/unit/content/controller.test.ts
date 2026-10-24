@@ -90,7 +90,7 @@ describe('mouse selection', () => {
     expect(overlay.hideIcon).toHaveBeenCalled();
   });
 
-  it('hides the icon without throwing when the extension context is invalidated', async () => {
+  it('still shows the icon without throwing when the extension context is invalidated', async () => {
     const { overlay, controller } = setup({
       isIconEnabled: async () => {
         throw new Error('Extension context invalidated.');
@@ -101,8 +101,7 @@ describe('mouse selection', () => {
     controller.handleMouseUp(new MouseEvent('mouseup'));
     await settle();
 
-    expect(overlay.showIcon).not.toHaveBeenCalled();
-    expect(overlay.hideIcon).toHaveBeenCalled();
+    expect(overlay.showIcon).toHaveBeenCalledTimes(1);
   });
 
   it.each(['editable', 'long'])('does not show the icon for the %s selection', async (id) => {
