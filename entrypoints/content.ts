@@ -8,6 +8,7 @@ import { createOverlay } from '../lib/ui/overlay';
 
 export default defineContentScript({
   matches: ['<all_urls>'],
+  allFrames: true,
   main() {
     const controller = createController({
       win: window,

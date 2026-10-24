@@ -11,6 +11,16 @@ const ARTICLE_HTML = `<!doctype html>
   <p>젊은 세대 사이에서는 <span id="unknown">갓생</span> 이라는 말이 유행한다.</p>
 </body></html>`;
 
+export const FRAME_HOST_URL = 'https://example.test/frame-host';
+
+const FRAME_HOST_HTML = `<!doctype html>
+<html lang="ko"><head><meta charset="utf-8"><title>프레임 호스트</title></head>
+<body><iframe src="https://example.test/frame-article" style="width:600px;height:300px"></iframe></body></html>`;
+
+const FRAME_ARTICLE_HTML = `<!doctype html>
+<html lang="ko"><head><meta charset="utf-8"><title>프레임 기사</title></head>
+<body style="padding:40px;font-size:18px"><span id="known">온보딩</span></body></html>`;
+
 const SUMMARIES: Record<string, object> = {
   온보딩: {
     type: 'standard',
@@ -25,6 +35,13 @@ const SUMMARIES: Record<string, object> = {
 async function routeFakeNetwork(context: BrowserContext): Promise<void> {
   await context.route('https://example.test/**', (route) =>
     route.fulfill({ contentType: 'text/html', body: ARTICLE_HTML }),
+  );
+  // Playwright는 나중에 등록한 라우트를 먼저 적용하므로, 프레임 라우트는 위 와일드카드 뒤에 등록한다.
+  await context.route(FRAME_HOST_URL, (route) =>
+    route.fulfill({ contentType: 'text/html', body: FRAME_HOST_HTML }),
+  );
+  await context.route('https://example.test/frame-article', (route) =>
+    route.fulfill({ contentType: 'text/html', body: FRAME_ARTICLE_HTML }),
   );
   await context.route('https://ko.wikipedia.org/api/rest_v1/page/summary/**', (route) => {
     const title = decodeURIComponent(

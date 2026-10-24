@@ -58,6 +58,8 @@ const lastCardState = (overlay: ReturnType<typeof fakeOverlay>) =>
   overlay.showCard.mock.calls.at(-1)?.[2];
 
 beforeEach(() => {
+  vi.restoreAllMocks();
+  vi.spyOn(document, 'hasFocus').mockReturnValue(true);
   document.body.innerHTML = `
     <p>요즘 <span id="term">온보딩</span> 과정을 다룬다.</p>
     <p><span id="quoted">"온보딩",</span></p>
@@ -167,6 +169,17 @@ describe('shortcut', () => {
     controller.handleShortcut();
 
     expect(overlay.showCard).not.toHaveBeenCalled();
+  });
+
+  it('does nothing when this frame does not have focus', () => {
+    vi.spyOn(document, 'hasFocus').mockReturnValue(false);
+    const { overlay, requestLookup, controller } = setup();
+    selectContentsOf('term');
+
+    controller.handleShortcut();
+
+    expect(overlay.showCard).not.toHaveBeenCalled();
+    expect(requestLookup).not.toHaveBeenCalled();
   });
 
   it('does nothing inside an editable area', () => {

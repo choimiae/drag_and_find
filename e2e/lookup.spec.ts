@@ -1,5 +1,5 @@
 import type { Page } from '@playwright/test';
-import { ARTICLE_URL, expect, test } from './fixtures';
+import { ARTICLE_URL, FRAME_HOST_URL, expect, test } from './fixtures';
 
 const role = (page: Page, name: string) => page.locator(`[data-role="${name}"]`);
 
@@ -87,4 +87,14 @@ test('설정 화면에 단축키가 표시되고, 아이콘을 끄면 드래그�
   await page.waitForTimeout(500);
 
   await expect(role(page, 'icon')).toHaveCount(0);
+});
+
+test('글이 내부 프레임에 있어도 드래그 후 아이콘을 누르면 카드가 뜬다', async ({ page }) => {
+  await page.goto(FRAME_HOST_URL);
+  const frame = page.frameLocator('iframe');
+
+  await frame.locator('#known').dblclick();
+  await frame.locator('[data-role="icon"]').click();
+
+  await expect(frame.locator('[data-role="title"]')).toHaveText('온보딩');
 });

@@ -96,6 +96,8 @@ export function createController(deps: ControllerDeps): Controller {
       if (event.key === 'Escape') closeAll();
     },
     handleShortcut() {
+      // 단축키 알림은 탭의 모든 프레임에 전달된다. 포커스가 있는 프레임만 반응해야 카드가 두 개 뜨지 않는다.
+      if (!win.document.hasFocus()) return;
       const snapshot = readSelection();
       if (!snapshot) return;
       const check = checkSelection(snapshot.text);
