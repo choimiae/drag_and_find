@@ -32,6 +32,8 @@
 
 ## 빌드/검증 명령
 
+처음 한 번: Node 22와 pnpm 12가 필요하다. `pnpm install` 후 `pnpm exec playwright install chromium`을 실행한다(`pnpm test:e2e`에 필요).
+
 | 목적 | 명령 |
 |---|---|
 | 개발(크롬 자동 실행·변경 즉시 반영) | `pnpm dev` |
