@@ -8,7 +8,7 @@ Drag and Find는 웹페이지에서 드래그한 단어의 한국어 위키백�
 
 ## 설치
 
-- **크롬 웹스토어**: 심사 중입니다. 게시되면 여기에 링크를 올립니다.
+- **크롬 웹스토어**: [Drag and Find 설치하기](https://chromewebstore.google.com/detail/odakmhndhedojcgadjfaeeljddldicla)
 - **직접 설치**: 아래 [개발](#개발) 부분을 참고해 빌드한 뒤 `chrome://extensions`에서 불러올 수 있습니다.
 
 ## 사용 방법
