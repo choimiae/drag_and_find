@@ -1,5 +1,6 @@
 import {
   DEFAULT_SETTINGS,
+  isSearchEngine,
   isThemeSetting,
   loadSettings,
   saveSettings,
@@ -22,12 +23,17 @@ export async function initOptionsPage(doc: Document, deps: OptionsPageDeps): Pro
   const themeInputs = Array.from(
     themeGroup.querySelectorAll<HTMLInputElement>('input[name="theme"]'),
   );
+  const searchEngineGroup = requireElement<HTMLElement>(doc, '#search-engine');
+  const searchEngineInputs = Array.from(
+    searchEngineGroup.querySelectorAll<HTMLInputElement>('input[name="search-engine"]'),
+  );
   const shortcutLabel = requireElement<HTMLElement>(doc, '#shortcut');
   const shortcutButton = requireElement<HTMLButtonElement>(doc, '#change-shortcut');
 
   const session = createSettingsSession(deps.area, (settings) => {
     checkbox.checked = settings.showIcon;
     for (const input of themeInputs) input.checked = input.value === settings.theme;
+    for (const input of searchEngineInputs) input.checked = input.value === settings.searchEngine;
   });
 
   // 불러오기가 늦거나 실패해도 조작은 되도록, 리스너는 await 전에 붙인다.
@@ -35,6 +41,13 @@ export async function initOptionsPage(doc: Document, deps: OptionsPageDeps): Pro
   for (const input of themeInputs) {
     input.addEventListener('change', () => {
       if (input.checked && isThemeSetting(input.value)) session.update({ theme: input.value });
+    });
+  }
+  for (const input of searchEngineInputs) {
+    input.addEventListener('change', () => {
+      if (input.checked && isSearchEngine(input.value)) {
+        session.update({ searchEngine: input.value });
+      }
     });
   }
   shortcutButton.addEventListener('click', () => void deps.openShortcutSettings());

@@ -9,6 +9,10 @@ const MARKUP = `
     <input type="radio" name="theme" value="light" id="theme-light" />
     <input type="radio" name="theme" value="dark" id="theme-dark" />
   </fieldset>
+  <fieldset id="search-engine">
+    <input type="radio" name="search-engine" value="naver" id="search-engine-naver" />
+    <input type="radio" name="search-engine" value="google" id="search-engine-google" />
+  </fieldset>
   <input id="show-icon" type="checkbox" role="switch" />
   <span id="shortcut"></span>
   <button id="change-shortcut" type="button"></button>`;
@@ -208,6 +212,57 @@ describe('theme', () => {
     document.getElementById('theme')?.remove();
 
     await expect(initOptionsPage(document, deps())).rejects.toThrow('#theme');
+  });
+});
+
+describe('search engine', () => {
+  const engine = (name: string) =>
+    document.getElementById(`search-engine-${name}`) as HTMLInputElement;
+
+  it('checks naver when nothing is stored', async () => {
+    await initOptionsPage(document, deps());
+
+    expect(engine('naver').checked).toBe(true);
+    expect(engine('google').checked).toBe(false);
+  });
+
+  it('shows the stored search engine', async () => {
+    const area = memoryArea();
+    await saveSettings(area, { showIcon: true, theme: 'auto', searchEngine: 'google' });
+
+    await initOptionsPage(document, deps({ area }));
+
+    expect(engine('google').checked).toBe(true);
+  });
+
+  it('saves the chosen search engine and keeps other settings', async () => {
+    const area = memoryArea();
+    await saveSettings(area, { showIcon: false, theme: 'dark', searchEngine: 'naver' });
+    await initOptionsPage(document, deps({ area }));
+
+    engine('google').checked = true;
+    engine('google').dispatchEvent(new Event('change'));
+    await flush();
+
+    expect(await loadSettings(area)).toEqual({
+      showIcon: false,
+      theme: 'dark',
+      searchEngine: 'google',
+    });
+  });
+
+  it('puts the previous search engine back when saving fails', async () => {
+    const area = memoryArea();
+    await saveSettings(area, { showIcon: true, theme: 'auto', searchEngine: 'naver' });
+    const failing = { ...area, set: async () => Promise.reject(new Error('quota')) };
+    await initOptionsPage(document, deps({ area: failing }));
+
+    engine('google').checked = true;
+    engine('google').dispatchEvent(new Event('change'));
+    await flush();
+
+    expect(engine('naver').checked).toBe(true);
+    expect(engine('google').checked).toBe(false);
   });
 });
 
