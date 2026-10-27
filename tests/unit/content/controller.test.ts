@@ -30,6 +30,7 @@ function setup(overrides: Partial<ControllerDeps> = {}) {
     overlay,
     requestLookup,
     isIconEnabled: async () => true,
+    getSearchEngine: () => 'naver',
     ...overrides,
   });
   return { overlay, requestLookup, controller };
@@ -260,6 +261,17 @@ describe('late responses', () => {
 
     expect(overlay.hideCard).toHaveBeenCalled();
     expect(overlay.showCard.mock.calls).toHaveLength(callsAfterClose);
+  });
+
+  it('passes the current search engine to the card', async () => {
+    const { overlay, controller } = setup({
+      getSearchEngine: vi.fn<ControllerDeps['getSearchEngine']>(() => 'google'),
+    });
+    selectContentsOf('term');
+    controller.handleShortcut();
+    await settle();
+
+    expect(overlay.showCard.mock.calls.at(-1)?.[3].getSearchEngine()).toBe('google');
   });
 
   it('retry looks up the same word again', async () => {

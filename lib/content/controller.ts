@@ -1,4 +1,4 @@
-import { DEFAULT_SETTINGS } from '../settings';
+import { DEFAULT_SETTINGS, type SearchEngine } from '../settings';
 import type { LookupResult } from '../lookup/types';
 import { contextAroundRange } from './context';
 import { checkSelection, isInEditableContext } from '../selection';
@@ -10,6 +10,7 @@ export interface ControllerDeps {
   overlay: Overlay;
   requestLookup(query: string, context?: string): Promise<LookupResult>;
   isIconEnabled(): Promise<boolean>;
+  getSearchEngine(): SearchEngine;
 }
 
 export interface Controller {
@@ -62,7 +63,7 @@ export function createController(deps: ControllerDeps): Controller {
       onRetry: () => void lookUp(query, anchor, context),
       // 다른 뜻은 제목 그대로 찾으므로 문맥으로 다시 고를 필요가 없다.
       onSelectMeaning: (title) => void lookUp(title, anchor),
-      getSearchEngine: () => DEFAULT_SETTINGS.searchEngine,
+      getSearchEngine: deps.getSearchEngine,
     });
   }
 
