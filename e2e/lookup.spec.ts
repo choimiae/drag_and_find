@@ -189,7 +189,7 @@ test('설정에서 구글을 고르면 Enter로 구글에서 검색한다', asyn
     role(page, 'search-input').press('Enter'),
   ]);
 
-  expect(google.url()).toMatch(/^https:\/\/www\.google\.com\/search\?q=/);
+  await expect(google).toHaveURL(/^https:\/\/www\.google\.com\/search\?q=/);
 });
 
 test('검색어 칸에 글자를 쳐도 페이지 단축키가 실행되지 않는다', async ({ page }) => {
