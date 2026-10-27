@@ -2,7 +2,12 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { HOST_TAG, createOverlay } from '../../../lib/ui/overlay';
 
 const ANCHOR = { top: 100, bottom: 120, left: 50, right: 110 };
-const handlers = () => ({ onClose: vi.fn(), onRetry: vi.fn(), onSelectMeaning: vi.fn() });
+const handlers = () => ({
+  onClose: vi.fn(),
+  onRetry: vi.fn(),
+  onSelectMeaning: vi.fn(),
+  getSearchEngine: () => 'naver' as const,
+});
 
 beforeEach(() => {
   document.querySelectorAll(HOST_TAG).forEach((host) => host.remove());

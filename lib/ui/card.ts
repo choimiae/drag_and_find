@@ -5,8 +5,9 @@ import type {
   Meaning,
   SenseCandidate,
 } from '../lookup/types';
-import { googleSearchUrl, naverSearchUrl } from '../search-urls';
+import { searchUrl } from '../search-urls';
 import { MAX_QUERY_LENGTH } from '../selection';
+import type { SearchEngine } from '../settings';
 
 export type CardState =
   { kind: 'loading' } | { kind: 'result'; result: LookupResult } | { kind: 'too_long' };
@@ -19,6 +20,15 @@ export interface CardHandlers {
   onClose(): void;
   onRetry(): void;
   onSelectMeaning(title: string): void;
+  /** Enter를 누른 순간 바로 읽어야 하므로 동기 함수다 (새 탭이 팝업 차단에 걸리지 않게). */
+  getSearchEngine(): SearchEngine;
+}
+
+interface CarriedSearch {
+  value: string;
+  focused: boolean;
+  selectionStart: number | null;
+  selectionEnd: number | null;
 }
 
 interface ElementOptions {
@@ -38,8 +48,31 @@ export function renderCard(
   const header = buildHeader(doc, titleFor(query, state), isAmbiguous(state), handlers.onClose);
   const body = element(doc, 'div', { className: 'card-body', role: 'body' });
   body.append(...bodyContent(doc, state, handlers));
-  const actions = state.kind === 'too_long' ? [] : [buildActions(doc, query)];
+  const carried = carriedSearch(card, query);
+  const actions =
+    state.kind === 'too_long' ? [] : [buildActions(doc, query, handlers.getSearchEngine, carried)];
   card.replaceChildren(header, body, ...actions);
+  if (carried?.focused) restoreFocus(card, carried);
+}
+
+/** 같은 검색어로 다시 그릴 때만, 사용자가 고친 값과 커서 위치를 넘겨받는다. */
+function carriedSearch(card: HTMLElement, query: string): CarriedSearch | undefined {
+  const input = card.querySelector<HTMLInputElement>('[data-role="search-input"]');
+  if (!input || input.dataset.query !== query) return undefined;
+  const root = card.getRootNode() as Document | ShadowRoot;
+  return {
+    value: input.value,
+    focused: root.activeElement === input,
+    selectionStart: input.selectionStart,
+    selectionEnd: input.selectionEnd,
+  };
+}
+
+function restoreFocus(card: HTMLElement, carried: CarriedSearch): void {
+  const input = card.querySelector<HTMLInputElement>('[data-role="search-input"]');
+  if (!input) return;
+  input.focus();
+  input.setSelectionRange(carried.selectionStart ?? 0, carried.selectionEnd ?? 0);
 }
 
 function titleFor(query: string, state: CardState): string {
@@ -217,28 +250,68 @@ function buildHeader(
   return header;
 }
 
-function buildActions(doc: Document, query: string): HTMLElement {
+function buildActions(
+  doc: Document,
+  query: string,
+  getSearchEngine: () => SearchEngine,
+  carried?: CarriedSearch,
+): HTMLElement {
   const actions = element(doc, 'footer', { className: 'card-actions' });
-  actions.append(
-    actionLink(doc, googleSearchUrl(query), 'G', '구글 검색', 'google'),
-    actionLink(doc, naverSearchUrl(query), 'N', '네이버 검색', 'naver'),
-  );
+  const input = searchInput(doc, query, carried?.value ?? query);
+  const links = {
+    google: actionLink(doc, '구글', 'google'),
+    naver: actionLink(doc, '네이버', 'naver'),
+  };
+  const refresh = () => updateLinks(links, input.value);
+  input.addEventListener('input', refresh);
+  input.addEventListener('keydown', (event) => {
+    event.stopPropagation();
+    // 한글 조합 중 Enter는 글자 확정용이라 검색하지 않는다.
+    if (event.key !== 'Enter' || event.isComposing || event.keyCode === 229) return;
+    event.preventDefault();
+    const link = links[getSearchEngine()];
+    if (link.hasAttribute('href')) link.click();
+  });
+  // 페이지의 단축키가 입력 중인 글자를 가로채지 못하게 막는다.
+  input.addEventListener('keyup', (event) => event.stopPropagation());
+  input.addEventListener('keypress', (event) => event.stopPropagation());
+  refresh();
+  actions.append(input, links.google, links.naver);
   return actions;
 }
 
-function actionLink(
-  doc: Document,
-  href: string,
-  mark: string,
-  name: string,
-  role: string,
-): HTMLElement {
-  const link = externalLink(doc, href, name, role, 'card-action');
-  link.prepend(
-    element(doc, 'span', { className: `card-action-mark card-action-mark-${role}`, text: mark }),
-  );
-  // 표시 글자(G/N)가 이름 앞에 붙어 읽히지 않도록 이름을 따로 준다.
-  link.setAttribute('aria-label', name);
+function searchInput(doc: Document, query: string, value: string): HTMLInputElement {
+  const input = element(doc, 'input', {
+    className: 'card-search-input',
+    role: 'search-input',
+  }) as HTMLInputElement;
+  input.type = 'text';
+  input.value = value;
+  input.dataset.query = query;
+  input.setAttribute('aria-label', '검색어');
+  return input;
+}
+
+/** 입력칸 값(앞뒤 공백 제외)으로 두 링크를 갱신한다. 비었으면 링크를 끈다. */
+function updateLinks(links: Record<SearchEngine, HTMLElement>, value: string): void {
+  const text = value.trim();
+  for (const engine of Object.keys(links) as SearchEngine[]) {
+    const link = links[engine];
+    if (text === '') {
+      link.removeAttribute('href');
+      link.setAttribute('aria-disabled', 'true');
+    } else {
+      link.setAttribute('href', searchUrl(engine, text));
+      link.removeAttribute('aria-disabled');
+    }
+  }
+}
+
+function actionLink(doc: Document, name: string, role: string): HTMLElement {
+  const link = externalLink(doc, '', name, role, 'card-action');
+  link.removeAttribute('href');
+  link.setAttribute('aria-label', `${name} 검색`);
+  link.setAttribute('title', `${name} 검색`);
   return link;
 }
 

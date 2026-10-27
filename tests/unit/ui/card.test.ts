@@ -1,6 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderCard, type CardHandlers, type CardState } from '../../../lib/ui/card';
 import type { FoundResult } from '../../../lib/lookup/types';
+import { searchUrl } from '../../../lib/search-urls';
+import type { SearchEngine } from '../../../lib/settings';
 
 let card: HTMLElement;
 let handlers: CardHandlers;
@@ -35,7 +37,12 @@ function disambiguation(overrides: Partial<FoundResult> = {}): CardState {
 
 beforeEach(() => {
   card = document.createElement('section');
-  handlers = { onClose: vi.fn(), onRetry: vi.fn(), onSelectMeaning: vi.fn() };
+  handlers = {
+    onClose: vi.fn(),
+    onRetry: vi.fn(),
+    onSelectMeaning: vi.fn(),
+    getSearchEngine: () => 'naver',
+  };
 });
 
 describe('renderCard', () => {
@@ -310,14 +317,169 @@ describe('design details', () => {
     expect(box?.querySelector('[data-role="suggestion-extract"]')).not.toBeNull();
   });
 
-  it('marks search links with G and N but keeps readable names', () => {
-    renderCard(card, '온보딩', { kind: 'loading' }, handlers);
+  describe('search row', () => {
+    const typeInto = (value: string) => {
+      const input = part('search-input') as HTMLInputElement;
+      input.value = value;
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+    };
+    const enter = (init: KeyboardEventInit = {}) => {
+      const event = new KeyboardEvent('keydown', {
+        key: 'Enter',
+        bubbles: true,
+        composed: true,
+        cancelable: true,
+        ...init,
+      });
+      part('search-input')!.dispatchEvent(event);
+      return event;
+    };
+    const withEngine = (engine: SearchEngine) => {
+      handlers = { ...handlers, getSearchEngine: () => engine };
+    };
 
-    expect(part('google')?.querySelector('.card-action-mark')?.textContent).toBe('G');
-    expect(part('naver')?.querySelector('.card-action-mark')?.textContent).toBe('N');
-    expect(part('google')?.getAttribute('aria-label')).toBe('구글 검색');
-    expect(part('naver')?.getAttribute('aria-label')).toBe('네이버 검색');
+    it('shows search buttons as plain names without logo marks', () => {
+      renderCard(card, '온보딩', { kind: 'loading' }, handlers);
+
+      expect(part('google')?.textContent).toBe('구글');
+      expect(part('naver')?.textContent).toBe('네이버');
+      expect(part('google')?.getAttribute('aria-label')).toBe('구글 검색');
+      expect(part('naver')?.getAttribute('aria-label')).toBe('네이버 검색');
+      expect(part('google')?.getAttribute('title')).toBe('구글 검색');
+      expect(part('naver')?.getAttribute('title')).toBe('네이버 검색');
+      expect(card.querySelector('.card-action-mark')).toBeNull();
+    });
+
+    it('fills the search input with the query', () => {
+      renderCard(card, '온보딩', { kind: 'loading' }, handlers);
+
+      expect((part('search-input') as HTMLInputElement).value).toBe('온보딩');
+      expect(part('search-input')?.getAttribute('aria-label')).toBe('검색어');
+    });
+
+    it('updates both links when the search input changes', () => {
+      renderCard(card, '온보딩', { kind: 'loading' }, handlers);
+      typeInto('챗GPT 뜻');
+
+      expect(part('google')?.getAttribute('href')).toBe(searchUrl('google', '챗GPT 뜻'));
+      expect(part('naver')?.getAttribute('href')).toBe(searchUrl('naver', '챗GPT 뜻'));
+    });
+
+    it('trims spaces in the search input', () => {
+      renderCard(card, '온보딩', { kind: 'loading' }, handlers);
+      typeInto('  챗GPT  ');
+
+      expect(part('naver')?.getAttribute('href')).toBe(searchUrl('naver', '챗GPT'));
+    });
+
+    it('disables links when the search input is blank', () => {
+      renderCard(card, '온보딩', { kind: 'loading' }, handlers);
+      typeInto('   ');
+
+      for (const role of ['google', 'naver']) {
+        expect(part(role)?.hasAttribute('href')).toBe(false);
+        expect(part(role)?.getAttribute('aria-disabled')).toBe('true');
+      }
+      typeInto('a');
+      for (const role of ['google', 'naver']) {
+        expect(part(role)?.hasAttribute('href')).toBe(true);
+        expect(part(role)?.hasAttribute('aria-disabled')).toBe(false);
+      }
+    });
+
+    it('opens the chosen engine on Enter', () => {
+      withEngine('google');
+      renderCard(card, '온보딩', { kind: 'loading' }, handlers);
+      const google = vi.spyOn(part('google')!, 'click');
+      const naver = vi.spyOn(part('naver')!, 'click');
+
+      const event = enter();
+
+      expect(google).toHaveBeenCalledTimes(1);
+      expect(naver).not.toHaveBeenCalled();
+      expect(event.defaultPrevented).toBe(true);
+    });
+
+    it('ignores Enter while composing Korean', () => {
+      renderCard(card, '온보딩', { kind: 'loading' }, handlers);
+      const naver = vi.spyOn(part('naver')!, 'click');
+
+      enter({ isComposing: true });
+      const legacy = new KeyboardEvent('keydown', { key: 'Enter', bubbles: true });
+      Object.defineProperty(legacy, 'keyCode', { value: 229 });
+      part('search-input')!.dispatchEvent(legacy);
+
+      expect(naver).not.toHaveBeenCalled();
+    });
+
+    it('does nothing on Enter when the search input is blank', () => {
+      renderCard(card, '온보딩', { kind: 'loading' }, handlers);
+      const naver = vi.spyOn(part('naver')!, 'click');
+      typeInto('');
+
+      enter();
+
+      expect(naver).not.toHaveBeenCalled();
+    });
+
+    it('keeps key events inside the search input', () => {
+      document.body.append(card);
+      renderCard(card, '온보딩', { kind: 'loading' }, handlers);
+      const listener = vi.fn();
+      for (const type of ['keydown', 'keyup', 'keypress']) {
+        document.addEventListener(type, listener);
+      }
+
+      for (const type of ['keydown', 'keyup', 'keypress']) {
+        part('search-input')!.dispatchEvent(
+          new KeyboardEvent(type, { key: 'k', bubbles: true, composed: true }),
+        );
+      }
+
+      for (const type of ['keydown', 'keyup', 'keypress']) {
+        document.removeEventListener(type, listener);
+      }
+      card.remove();
+      expect(listener).not.toHaveBeenCalled();
+    });
+
+    it('keeps an edited value and caret when the same query is redrawn', () => {
+      document.body.append(card);
+      renderCard(card, '온보딩', { kind: 'loading' }, handlers);
+      const oldInput = part('search-input') as HTMLInputElement;
+      typeInto('온보딩 뜻');
+      oldInput.focus();
+      oldInput.setSelectionRange(2, 2);
+
+      renderCard(card, '온보딩', { kind: 'result', result: { status: 'not_found' } }, handlers);
+
+      const input = part('search-input') as HTMLInputElement;
+      expect(input).not.toBe(oldInput);
+      expect(input.value).toBe('온보딩 뜻');
+      expect(document.activeElement).toBe(input);
+      expect(input.selectionStart).toBe(2);
+      expect(part('naver')?.getAttribute('href')).toBe(searchUrl('naver', '온보딩 뜻'));
+      card.remove();
+    });
+
+    it('resets the search input when the query changes', () => {
+      renderCard(card, '트리거', { kind: 'loading' }, handlers);
+      typeInto('트리거 뜻');
+
+      renderCard(card, '데이터베이스 트리거', { kind: 'loading' }, handlers);
+
+      expect((part('search-input') as HTMLInputElement).value).toBe('데이터베이스 트리거');
+    });
+
+    it('does not focus the search input on first render', () => {
+      document.body.append(card);
+      renderCard(card, '온보딩', { kind: 'loading' }, handlers);
+
+      expect(document.activeElement).not.toBe(part('search-input'));
+      card.remove();
+    });
   });
+
   describe('Wikipedia attribution', () => {
     const attributionTextOf = () => part('attribution')?.textContent;
 

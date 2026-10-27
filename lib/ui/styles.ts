@@ -205,14 +205,15 @@ export const OVERLAY_CSS = `
 .card-actions {
   display: flex;
   flex: none;
-  gap: 7px;
+  align-items: center;
+  gap: 6px;
   padding: 10px 15px 12px;
   border-top: 1px solid var(--dnf-divider);
   background: var(--dnf-surface-alt);
 }
 .card-action {
-  flex: 1;
-  padding: 7px 0;
+  flex: none;
+  padding: 6px 11px;
   border: 1px solid var(--dnf-border);
   border-radius: 8px;
   background: var(--dnf-button);
@@ -222,7 +223,18 @@ export const OVERLAY_CSS = `
   text-decoration: none;
 }
 .card-action:hover, .card-action:focus-visible { border-color: var(--dnf-accent); }
-.card-action-mark { margin-right: 4px; font-weight: 800; }
-.card-action-mark-google { color: #1a73e8; }
-.card-action-mark-naver { color: #03c75a; }
+.card-search-input {
+  flex: 1;
+  min-width: 0;
+  box-sizing: border-box;
+  padding: 6px 10px;
+  border: 1px solid var(--dnf-border);
+  border-radius: 8px;
+  background: var(--dnf-surface);
+  color: var(--dnf-text);
+  font: inherit;
+  font-size: 13px;
+}
+.card-search-input:focus-visible { outline: 2px solid var(--dnf-accent); outline-offset: -1px; }
+a.card-action[aria-disabled='true'] { opacity: 0.5; cursor: default; }
 `;

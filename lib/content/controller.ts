@@ -62,6 +62,7 @@ export function createController(deps: ControllerDeps): Controller {
       onRetry: () => void lookUp(query, anchor, context),
       // 다른 뜻은 제목 그대로 찾으므로 문맥으로 다시 고를 필요가 없다.
       onSelectMeaning: (title) => void lookUp(title, anchor),
+      getSearchEngine: () => DEFAULT_SETTINGS.searchEngine,
     });
   }
 
