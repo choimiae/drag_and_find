@@ -150,3 +150,59 @@ test('설정에서 어둡게를 고르면 이미 열린 탭의 카드도 바로 
   await expect(role(page, 'icon')).toBeVisible();
   await expect(page.locator('drag-and-find-root')).toHaveAttribute('data-theme', 'dark');
 });
+
+test('검색어를 고친 뒤 Enter를 누르면 네이버에서 고친 말로 검색한다', async ({ page, context }) => {
+  await openArticleAndLookUp(page, 'unknown');
+
+  await role(page, 'search-input').fill('챗GPT 뜻');
+  const [naver] = await Promise.all([
+    context.waitForEvent('page'),
+    role(page, 'search-input').press('Enter'),
+  ]);
+
+  await expect(naver).toHaveURL(
+    'https://search.naver.com/search.naver?query=%EC%B1%97GPT%20%EB%9C%BB',
+  );
+});
+
+test('설정에서 구글을 고르면 Enter로 구글에서 검색한다', async ({
+  page,
+  context,
+  extensionId,
+  serviceWorker,
+}) => {
+  const options = await context.newPage();
+  await options.goto(`chrome-extension://${extensionId}/options.html`);
+  await options.locator('label[for="search-engine-google"]').click();
+  await expect
+    .poll(() =>
+      serviceWorker.evaluate(
+        `chrome.storage.local.get('settings').then((stored) => stored.settings?.searchEngine)`,
+      ),
+    )
+    .toBe('google');
+
+  await page.bringToFront();
+  await openArticleAndLookUp(page, 'unknown');
+  const [google] = await Promise.all([
+    context.waitForEvent('page'),
+    role(page, 'search-input').press('Enter'),
+  ]);
+
+  expect(google.url()).toMatch(/^https:\/\/www\.google\.com\/search\?q=/);
+});
+
+test('검색어 칸에 글자를 쳐도 페이지 단축키가 실행되지 않는다', async ({ page }) => {
+  await openArticleAndLookUp(page, 'unknown');
+
+  await page.evaluate(() => {
+    const counter = window as unknown as { keyCount: number };
+    counter.keyCount = 0;
+    document.addEventListener('keydown', () => counter.keyCount++);
+  });
+  await role(page, 'search-input').press('k');
+  expect(await page.evaluate(() => (window as unknown as { keyCount: number }).keyCount)).toBe(0);
+
+  await role(page, 'search-input').press('Escape');
+  await expect(role(page, 'card')).toHaveCount(0);
+});
