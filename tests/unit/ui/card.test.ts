@@ -379,11 +379,13 @@ describe('design details', () => {
       for (const role of ['google', 'naver']) {
         expect(part(role)?.hasAttribute('href')).toBe(false);
         expect(part(role)?.getAttribute('aria-disabled')).toBe('true');
+        expect(part(role)?.getAttribute('role')).toBe('link');
       }
       typeInto('a');
       for (const role of ['google', 'naver']) {
         expect(part(role)?.hasAttribute('href')).toBe(true);
         expect(part(role)?.hasAttribute('aria-disabled')).toBe(false);
+        expect(part(role)?.hasAttribute('role')).toBe(false);
       }
     });
 
@@ -454,12 +456,21 @@ describe('design details', () => {
       renderCard(card, '온보딩', { kind: 'result', result: { status: 'not_found' } }, handlers);
 
       const input = part('search-input') as HTMLInputElement;
-      expect(input).not.toBe(oldInput);
+      expect(input).toBe(oldInput);
       expect(input.value).toBe('온보딩 뜻');
       expect(document.activeElement).toBe(input);
       expect(input.selectionStart).toBe(2);
       expect(part('naver')?.getAttribute('href')).toBe(searchUrl('naver', '온보딩 뜻'));
       card.remove();
+    });
+
+    it('turns off spellcheck and autocomplete on the search input', () => {
+      renderCard(card, '온보딩', { kind: 'loading' }, handlers);
+
+      const input = part('search-input')!;
+      expect(input.getAttribute('spellcheck')).toBe('false');
+      expect(input.getAttribute('autocomplete')).toBe('off');
+      expect(input.getAttribute('enterkeyhint')).toBe('search');
     });
 
     it('resets the search input when the query changes', () => {

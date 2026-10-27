@@ -24,13 +24,6 @@ export interface CardHandlers {
   getSearchEngine(): SearchEngine;
 }
 
-interface CarriedSearch {
-  value: string;
-  focused: boolean;
-  selectionStart: number | null;
-  selectionEnd: number | null;
-}
-
 interface ElementOptions {
   className?: string;
   role?: string;
@@ -48,31 +41,23 @@ export function renderCard(
   const header = buildHeader(doc, titleFor(query, state), isAmbiguous(state), handlers.onClose);
   const body = element(doc, 'div', { className: 'card-body', role: 'body' });
   body.append(...bodyContent(doc, state, handlers));
-  const carried = carriedSearch(card, query);
+  const keptFooter = state.kind === 'too_long' ? undefined : sameQueryFooter(card, query);
+  if (keptFooter) {
+    // 입력칸을 문서에 둔 채로 위아래만 바꿔야 한글 조합·실행 취소 기록·포커스가 끊기지 않는다.
+    for (const child of Array.from(card.children)) if (child !== keptFooter) child.remove();
+    keptFooter.before(header, body);
+    return;
+  }
   const actions =
-    state.kind === 'too_long' ? [] : [buildActions(doc, query, handlers.getSearchEngine, carried)];
+    state.kind === 'too_long' ? [] : [buildActions(doc, query, handlers.getSearchEngine)];
   card.replaceChildren(header, body, ...actions);
-  if (carried?.focused) restoreFocus(card, carried);
 }
 
-/** 같은 검색어로 다시 그릴 때만, 사용자가 고친 값과 커서 위치를 넘겨받는다. */
-function carriedSearch(card: HTMLElement, query: string): CarriedSearch | undefined {
+/** 같은 검색어로 다시 그릴 때만, 사용자가 고친 값이 든 검색 줄을 그대로 돌려준다. */
+function sameQueryFooter(card: HTMLElement, query: string): HTMLElement | undefined {
   const input = card.querySelector<HTMLInputElement>('[data-role="search-input"]');
   if (!input || input.dataset.query !== query) return undefined;
-  const root = card.getRootNode() as Document | ShadowRoot;
-  return {
-    value: input.value,
-    focused: root.activeElement === input,
-    selectionStart: input.selectionStart,
-    selectionEnd: input.selectionEnd,
-  };
-}
-
-function restoreFocus(card: HTMLElement, carried: CarriedSearch): void {
-  const input = card.querySelector<HTMLInputElement>('[data-role="search-input"]');
-  if (!input) return;
-  input.focus();
-  input.setSelectionRange(carried.selectionStart ?? 0, carried.selectionEnd ?? 0);
+  return input.closest<HTMLElement>('footer') ?? undefined;
 }
 
 function titleFor(query: string, state: CardState): string {
@@ -254,10 +239,9 @@ function buildActions(
   doc: Document,
   query: string,
   getSearchEngine: () => SearchEngine,
-  carried?: CarriedSearch,
 ): HTMLElement {
   const actions = element(doc, 'footer', { className: 'card-actions' });
-  const input = searchInput(doc, query, carried?.value ?? query);
+  const input = searchInput(doc, query);
   const links = {
     google: actionLink(doc, '구글', 'google'),
     naver: actionLink(doc, '네이버', 'naver'),
@@ -280,15 +264,18 @@ function buildActions(
   return actions;
 }
 
-function searchInput(doc: Document, query: string, value: string): HTMLInputElement {
+function searchInput(doc: Document, query: string): HTMLInputElement {
   const input = element(doc, 'input', {
     className: 'card-search-input',
     role: 'search-input',
   }) as HTMLInputElement;
   input.type = 'text';
-  input.value = value;
+  input.value = query;
   input.dataset.query = query;
   input.setAttribute('aria-label', '검색어');
+  input.setAttribute('spellcheck', 'false');
+  input.setAttribute('autocomplete', 'off');
+  input.setAttribute('enterkeyhint', 'search');
   return input;
 }
 
@@ -299,9 +286,12 @@ function updateLinks(links: Record<SearchEngine, HTMLElement>, value: string): v
     const link = links[engine];
     if (text === '') {
       link.removeAttribute('href');
+      // href가 없으면 링크 역할이 사라지므로, 꺼진 링크로 읽히도록 역할을 직접 준다.
+      link.setAttribute('role', 'link');
       link.setAttribute('aria-disabled', 'true');
     } else {
       link.setAttribute('href', searchUrl(engine, text));
+      link.removeAttribute('role');
       link.removeAttribute('aria-disabled');
     }
   }

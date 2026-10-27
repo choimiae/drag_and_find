@@ -223,6 +223,7 @@ export const OVERLAY_CSS = `
   text-decoration: none;
 }
 .card-action:hover, .card-action:focus-visible { border-color: var(--dnf-accent); }
+.card-action[aria-disabled='true']:hover, .card-action[aria-disabled='true']:focus-visible { border-color: var(--dnf-border); }
 .card-search-input {
   flex: 1;
   min-width: 0;
