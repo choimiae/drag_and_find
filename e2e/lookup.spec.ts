@@ -165,12 +165,15 @@ test('검색어를 고친 뒤 Enter를 누르면 네이버에서 고친 말로 �
   );
 });
 
-test('설정에서 구글을 고르면 Enter로 구글에서 검색한다', async ({
+test('설정에서 구글을 고르면 이미 떠 있는 카드에서도 Enter로 구글에서 검색한다', async ({
   page,
   context,
   extensionId,
   serviceWorker,
 }) => {
+  await openArticleAndLookUp(page, 'unknown');
+  await expect(role(page, 'card')).toBeVisible();
+
   const options = await context.newPage();
   await options.goto(`chrome-extension://${extensionId}/options.html`);
   await options.locator('label[for="search-engine-google"]').click();
@@ -183,7 +186,6 @@ test('설정에서 구글을 고르면 Enter로 구글에서 검색한다', asyn
     .toBe('google');
 
   await page.bringToFront();
-  await openArticleAndLookUp(page, 'unknown');
   const [google] = await Promise.all([
     context.waitForEvent('page'),
     role(page, 'search-input').press('Enter'),
@@ -200,9 +202,46 @@ test('검색어 칸에 글자를 쳐도 페이지 단축키가 실행되지 않�
     counter.keyCount = 0;
     document.addEventListener('keydown', () => counter.keyCount++);
   });
+  const keyCount = () => page.evaluate(() => (window as unknown as { keyCount: number }).keyCount);
+  // 리스너가 실제로 붙었는지 먼저 확인한다 (입력칸 밖에서는 센다).
+  await page.locator('body').press('k');
+  expect(await keyCount()).toBe(1);
+
   await role(page, 'search-input').press('k');
-  expect(await page.evaluate(() => (window as unknown as { keyCount: number }).keyCount)).toBe(0);
+  expect(await keyCount()).toBe(1);
 
   await role(page, 'search-input').press('Escape');
   await expect(role(page, 'card')).toHaveCount(0);
+});
+
+test('검색어 칸 안에서 글을 끌어 선택해도 그 글로 아이콘이 뜨지 않는다', async ({ page }) => {
+  await openArticleAndLookUp(page, 'unknown');
+  const box = await role(page, 'search-input').boundingBox();
+  if (!box) throw new Error('검색어 칸을 찾지 못했습니다');
+
+  await page.mouse.move(box.x + 8, box.y + box.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(box.x + box.width - 8, box.y + box.height / 2, { steps: 5 });
+  await page.mouse.move(5, 5, { steps: 5 });
+  await page.mouse.up();
+  await page.waitForTimeout(300);
+
+  await expect(role(page, 'icon')).toHaveCount(0);
+});
+
+test('검색어 칸에서 글을 고른 채 단축키를 눌러도 새로 찾지 않는다', async ({
+  page,
+  serviceWorker,
+}) => {
+  await openArticleAndLookUp(page, 'unknown');
+  await expect(role(page, 'title')).toHaveText('갓생');
+  await role(page, 'search-input').fill('다른 말');
+  await role(page, 'search-input').selectText();
+
+  await serviceWorker.evaluate(
+    `chrome.tabs.query({}).then((tabs) => Promise.allSettled(tabs.map((tab) => chrome.tabs.sendMessage(tab.id, { type: 'trigger-from-shortcut' }))))`,
+  );
+  await page.waitForTimeout(500);
+
+  await expect(role(page, 'title')).toHaveText('갓생');
 });
