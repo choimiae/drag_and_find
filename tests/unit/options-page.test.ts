@@ -32,7 +32,7 @@ beforeEach(() => {
 describe('initOptionsPage', () => {
   it('shows the stored icon setting', async () => {
     const area = memoryArea();
-    await saveSettings(area, { showIcon: false, theme: 'auto' });
+    await saveSettings(area, { showIcon: false, theme: 'auto', searchEngine: 'naver' });
 
     await initOptionsPage(document, deps({ area }));
 
@@ -47,7 +47,11 @@ describe('initOptionsPage', () => {
     checkbox().dispatchEvent(new Event('change'));
     await flush();
 
-    expect(await loadSettings(area)).toEqual({ showIcon: false, theme: 'auto' });
+    expect(await loadSettings(area)).toEqual({
+      showIcon: false,
+      theme: 'auto',
+      searchEngine: 'naver',
+    });
   });
 
   it('shows the current shortcut', async () => {
@@ -101,7 +105,11 @@ describe('initOptionsPage', () => {
     checkbox().dispatchEvent(new Event('change'));
     await flush();
 
-    expect(await loadSettings(stored)).toEqual({ showIcon: false, theme: 'auto' });
+    expect(await loadSettings(stored)).toEqual({
+      showIcon: false,
+      theme: 'auto',
+      searchEngine: 'naver',
+    });
   });
 
   it('puts the checkbox back when saving fails', async () => {
@@ -132,7 +140,11 @@ describe('initOptionsPage', () => {
     checkbox().dispatchEvent(new Event('change'));
     await flush();
 
-    expect(await loadSettings(area)).toEqual({ showIcon: true, theme: 'auto' });
+    expect(await loadSettings(area)).toEqual({
+      showIcon: true,
+      theme: 'auto',
+      searchEngine: 'naver',
+    });
   });
 
   it('fails clearly when the markup is missing', async () => {
@@ -157,7 +169,7 @@ describe('theme', () => {
 
   it('shows the stored theme', async () => {
     const area = memoryArea();
-    await saveSettings(area, { showIcon: true, theme: 'dark' });
+    await saveSettings(area, { showIcon: true, theme: 'dark', searchEngine: 'naver' });
 
     await initOptionsPage(document, deps({ area }));
 
@@ -166,18 +178,22 @@ describe('theme', () => {
 
   it('saves the chosen theme and keeps the icon setting', async () => {
     const area = memoryArea();
-    await saveSettings(area, { showIcon: false, theme: 'auto' });
+    await saveSettings(area, { showIcon: false, theme: 'auto', searchEngine: 'naver' });
     await initOptionsPage(document, deps({ area }));
 
     choose('light');
     await flush();
 
-    expect(await loadSettings(area)).toEqual({ showIcon: false, theme: 'light' });
+    expect(await loadSettings(area)).toEqual({
+      showIcon: false,
+      theme: 'light',
+      searchEngine: 'naver',
+    });
   });
 
   it('puts the previous theme back when saving fails', async () => {
     const area = memoryArea();
-    await saveSettings(area, { showIcon: true, theme: 'light' });
+    await saveSettings(area, { showIcon: true, theme: 'light', searchEngine: 'naver' });
     const failing = { ...area, set: async () => Promise.reject(new Error('quota')) };
     await initOptionsPage(document, deps({ area: failing }));
 
@@ -220,7 +236,11 @@ describe('overlapping changes', () => {
     switchOff();
     await flush();
 
-    expect(await loadSettings(area)).toEqual({ showIcon: false, theme: 'dark' });
+    expect(await loadSettings(area)).toEqual({
+      showIcon: false,
+      theme: 'dark',
+      searchEngine: 'naver',
+    });
   });
 
   it('keeps the newer switch value when only the earlier save fails', async () => {
@@ -242,12 +262,16 @@ describe('overlapping changes', () => {
 
     expect(checkbox().checked).toBe(false);
     expect(radio('dark').checked).toBe(true);
-    expect(await loadSettings(stored)).toEqual({ showIcon: false, theme: 'dark' });
+    expect(await loadSettings(stored)).toEqual({
+      showIcon: false,
+      theme: 'dark',
+      searchEngine: 'naver',
+    });
   });
 
   it('keeps a change made before loading finishes', async () => {
     const stored = memoryArea();
-    await saveSettings(stored, { showIcon: true, theme: 'light' });
+    await saveSettings(stored, { showIcon: true, theme: 'light', searchEngine: 'naver' });
     let release: () => void = () => undefined;
     const gate = new Promise<void>((resolve) => {
       release = resolve;
@@ -267,6 +291,10 @@ describe('overlapping changes', () => {
     await flush();
 
     expect(checkbox().checked).toBe(false);
-    expect(await loadSettings(stored)).toEqual({ showIcon: false, theme: 'auto' });
+    expect(await loadSettings(stored)).toEqual({
+      showIcon: false,
+      theme: 'auto',
+      searchEngine: 'naver',
+    });
   });
 });

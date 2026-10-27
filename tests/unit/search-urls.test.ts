@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { googleSearchUrl, naverSearchUrl } from '../../lib/search-urls';
+import { googleSearchUrl, naverSearchUrl, searchUrl } from '../../lib/search-urls';
 
 describe('search urls', () => {
   it('builds a Google search url with the encoded query', () => {
@@ -19,5 +19,12 @@ describe('search urls', () => {
       'https://search.naver.com/search.naver?query=A%26B%20%231%3F',
     );
     expect(googleSearchUrl('TCP/IP')).toBe('https://www.google.com/search?q=TCP%2FIP');
+  });
+
+  it('picks the url builder by engine', () => {
+    expect(searchUrl('google', 'a b')).toBe('https://www.google.com/search?q=a%20b');
+    expect(searchUrl('naver', '챗GPT 뜻')).toBe(
+      'https://search.naver.com/search.naver?query=%EC%B1%97GPT%20%EB%9C%BB',
+    );
   });
 });

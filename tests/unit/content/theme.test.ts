@@ -7,6 +7,7 @@ function deps(overrides: Partial<ThemeWatchDeps> = {}) {
     loadSettings: vi.fn<ThemeWatchDeps['loadSettings']>(async () => ({
       showIcon: true,
       theme: 'light',
+      searchEngine: 'naver',
     })),
     onSettingsChanged: vi.fn<ThemeWatchDeps['onSettingsChanged']>((l) => {
       listener = l;
@@ -30,7 +31,7 @@ describe('watchTheme', () => {
     const d = deps();
     await watchTheme(d);
 
-    d.change({ showIcon: true, theme: 'dark' });
+    d.change({ showIcon: true, theme: 'dark', searchEngine: 'naver' });
 
     expect(d.applyTheme).toHaveBeenLastCalledWith('dark');
   });
