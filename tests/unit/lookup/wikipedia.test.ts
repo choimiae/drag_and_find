@@ -4,7 +4,7 @@ import {
   isRelevantTitle,
   type FetchFn,
 } from '../../../lib/lookup/wikipedia';
-import { linkedResponse, pageTextResponse } from '../fixtures/disambiguation/load';
+import { linkedResponse, parseResponse } from '../fixtures/disambiguation/load';
 
 const SUMMARY_PATH = '/api/rest_v1/page/summary/';
 
@@ -195,17 +195,23 @@ describe('isRelevantTitle', () => {
   });
 });
 
-function disambiguationFetch(word: string, overrides: { linked?: () => Response } = {}) {
+function disambiguationFetch(
+  word: string,
+  overrides: { linked?: () => Response; parse?: () => Response } = {},
+) {
   return fakeFetch((url) => {
     if (isSummary(url)) {
       return summaryTitleOf(url) === word
         ? summary(word, { type: 'disambiguation', extract: `${word}는 다음 뜻으로 쓰인다.` })
         : notFound();
     }
-    if (url.searchParams.get('generator') === 'links') {
-      return overrides.linked ? overrides.linked() : json(linkedResponse(word));
+    if (url.searchParams.get('action') === 'parse') {
+      return overrides.parse?.() ?? json(parseResponse(word));
     }
-    return json(pageTextResponse(word));
+    if (url.searchParams.get('generator') === 'links') {
+      return overrides.linked?.() ?? json(linkedResponse(word));
+    }
+    return notFound();
   });
 }
 
@@ -216,6 +222,12 @@ describe('disambiguation pages', () => {
     const result = await provider(fetchFn).lookup('트리거');
 
     expect(fetchFn).toHaveBeenCalledTimes(3);
+    const parseUrl = fetchFn.mock.calls
+      .map(([input]) => new URL(String(input)))
+      .find((url) => url.searchParams.get('action') === 'parse');
+    expect(parseUrl?.searchParams.get('page')).toBe('트리거');
+    expect(parseUrl?.searchParams.get('prop')).toBe('text|links');
+    expect(parseUrl?.searchParams.get('formatversion')).toBe('2');
     expect(result).toMatchObject({ status: 'found', isDisambiguation: true });
     if (result.status !== 'found' || !result.disambiguation) throw new Error('no disambiguation');
     expect(result.disambiguation.basic).toHaveLength(2);
@@ -250,6 +262,51 @@ describe('disambiguation pages', () => {
     expect(result.disambiguation.candidates.map((c) => c.title)).not.toContain('비즈니스 모델');
   });
 
+  it('links a sentence-form item to its first article link', async () => {
+    const result = await provider(disambiguationFetch('마진')).lookup('마진');
+
+    if (result.status !== 'found' || !result.disambiguation) throw new Error('no disambiguation');
+    const measles = result.disambiguation.meanings.find((m) => m.label.startsWith('마진(痲疹)은'));
+    expect(measles?.title).toBe('홍역');
+  });
+
+  it('keeps the plain disambiguation result when the parse response has no text', async () => {
+    const fetchFn = disambiguationFetch('트리거', { parse: () => json({ parse: { links: [] } }) });
+
+    const result = await provider(fetchFn).lookup('트리거');
+
+    expect(result).toMatchObject({ status: 'found', isDisambiguation: true });
+    expect(result.status === 'found' && result.disambiguation).toBeFalsy();
+  });
+
+  it('keeps the plain disambiguation result when links is not an array', async () => {
+    const fetchFn = disambiguationFetch('트리거', {
+      parse: () => json({ parse: { text: '<ul></ul>', links: 'x' } }),
+    });
+
+    const result = await provider(fetchFn).lookup('트리거');
+
+    expect(result).toMatchObject({ status: 'found', isDisambiguation: true });
+    expect(result.status === 'found' && result.disambiguation).toBeFalsy();
+  });
+
+  it('ignores malformed link entries', async () => {
+    const fetchFn = disambiguationFetch('트리거', {
+      parse: () =>
+        json({
+          parse: {
+            text: '<ul><li><a href="/wiki/A">A</a></li></ul>',
+            links: [{ ns: 0, title: 'A' }, 'junk', null],
+          },
+        }),
+    });
+
+    const result = await provider(fetchFn).lookup('트리거');
+
+    if (result.status !== 'found' || !result.disambiguation) throw new Error('no disambiguation');
+    expect(result.disambiguation.meanings).toEqual([{ label: 'A', title: null }]);
+  });
+
   it('keeps the plain disambiguation result when an extra request fails', async () => {
     const fetchFn = disambiguationFetch('트리거', {
       linked: () => new Response('', { status: 429 }),
@@ -274,7 +331,7 @@ describe('disambiguation pages', () => {
     expect(result.disambiguation.candidates.map((c) => c.title)).not.toContain('숫자 문서');
   });
 
-  it('keeps the plain disambiguation result when the page-text request fails to connect', async () => {
+  it('keeps the plain disambiguation result when the parse request fails to connect', async () => {
     const fetchFn = fakeFetch((url) => {
       if (isSummary(url)) {
         return summary('트리거', {
@@ -283,7 +340,8 @@ describe('disambiguation pages', () => {
         });
       }
       if (url.searchParams.get('generator') === 'links') return json(linkedResponse('트리거'));
-      throw new TypeError('Failed to fetch');
+      if (url.searchParams.get('action') === 'parse') throw new TypeError('Failed to fetch');
+      return notFound();
     });
 
     const result = await provider(fetchFn).lookup('트리거');

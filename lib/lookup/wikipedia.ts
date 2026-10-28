@@ -1,4 +1,4 @@
-import { buildMeanings, parseDisambiguationText } from './disambiguation';
+import { parseDisambiguationHtml, type ParsedLink } from './disambiguation';
 import type { DisambiguationInfo, LookupProvider, LookupResult } from './types';
 
 export type FetchFn = (input: string, init?: RequestInit) => Promise<Response>;
@@ -23,7 +23,17 @@ interface SearchResponse {
 const EXCLUDED_CANDIDATE_TITLES = new Set(['위키낱말사전']);
 
 interface ExtractsResponse {
-  query?: { pages?: Record<string, { title?: string; extract?: string; missing?: string }> };
+  query?: { pages?: Record<string, { title?: string; extract?: string }> };
+}
+
+interface ParseResponse {
+  parse?: { text?: unknown; links?: unknown };
+}
+
+function isParsedLink(value: unknown): value is ParsedLink {
+  if (typeof value !== 'object' || value === null) return false;
+  const { ns, title, exists } = value as Record<string, unknown>;
+  return typeof ns === 'number' && typeof title === 'string' && typeof exists === 'boolean';
 }
 
 class RateLimitedError extends Error {}
@@ -90,8 +100,18 @@ export function createWikipediaKoProvider({
 
   async function fetchDisambiguation(title: string): Promise<DisambiguationInfo | null> {
     try {
-      const [textPages, linkedPages] = await Promise.all([
-        fetchPages({ prop: 'extracts', explaintext: '1', titles: title }),
+      const parseParams = new URLSearchParams({
+        action: 'parse',
+        page: title,
+        prop: 'text|links',
+        formatversion: '2',
+        disabletoc: '1',
+        disableeditsection: '1',
+        disablelimitreport: '1',
+        format: 'json',
+      });
+      const [parsed, linkedPages] = await Promise.all([
+        requestJson<ParseResponse>(`${ORIGIN}/w/api.php?${parseParams}`),
         fetchPages({
           generator: 'links',
           titles: title,
@@ -104,8 +124,9 @@ export function createWikipediaKoProvider({
           exchars: '300',
         }),
       ]);
-      const text = textPages?.[0]?.extract;
-      if (text === undefined || linkedPages === null) return null;
+      const text = parsed?.parse?.text;
+      const links = parsed?.parse?.links;
+      if (typeof text !== 'string' || !Array.isArray(links) || linkedPages === null) return null;
       const isLinkable = <P extends { title?: string }>(page: P): page is P & { title: string } =>
         typeof page.title === 'string' &&
         page.title !== title &&
@@ -115,12 +136,8 @@ export function createWikipediaKoProvider({
           ? [{ title: page.title, extract: page.extract, url: wikiUrl(page.title) }]
           : [],
       );
-      // 넘겨주기 문서는 첫 문단이 비어 있어도 실제로 있는 문서라 눌러서 열 수 있다.
-      const linkedTitles = linkedPages.flatMap((page) =>
-        isLinkable(page) && page.missing === undefined ? [page.title] : [],
-      );
-      const { basic, lines } = parseDisambiguationText(text);
-      return { basic, meanings: buildMeanings(lines, linkedTitles), candidates };
+      const { basic, meanings } = parseDisambiguationHtml(text, links.filter(isParsedLink));
+      return { basic, meanings, candidates };
     } catch {
       // 뜻 모음 추가 정보는 덤이다. 실패하면 기존처럼 "뜻이 여러 개" 안내만 보여 준다.
       return null;
