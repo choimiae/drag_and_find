@@ -118,6 +118,17 @@ test('문맥상 뜻을 누르면 그 뜻의 요약으로 카드가 바뀐다', a
   await expect(role(page, 'extract')).toContainText('자동으로 실행되는 절차');
 });
 
+test('문장으로 쓰인 다른 뜻을 누르면 그 문서의 요약으로 바뀐다', async ({ page }) => {
+  await openArticleAndLookUp(page, 'ambiguous');
+
+  await role(page, 'meanings')
+    .locator('[data-role="meaning"]', { hasText: '총의 방아쇠를 가리킨다' })
+    .click();
+
+  await expect(role(page, 'title')).toHaveText('방아쇠');
+  await expect(role(page, 'extract')).toContainText('격발 장치');
+});
+
 test('기본 테마는 크롬 설정 따라가기다', async ({ page }) => {
   await page.goto(ARTICLE_URL);
   await page.locator('#known').dblclick();

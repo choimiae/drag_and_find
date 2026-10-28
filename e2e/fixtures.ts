@@ -45,18 +45,40 @@ const SUMMARIES: Record<string, object> = {
     extract: '데이터베이스 트리거는 테이블에 행이 추가되거나 바뀔 때 자동으로 실행되는 절차이다.',
     content_urls: { desktop: { page: 'https://ko.wikipedia.org/wiki/x' } },
   },
+  방아쇠: {
+    type: 'standard',
+    title: '방아쇠',
+    extract: '방아쇠는 총의 격발 장치이다.',
+    content_urls: {
+      desktop: { page: 'https://ko.wikipedia.org/wiki/%EB%B0%A9%EC%95%84%EC%87%A0' },
+    },
+  },
 };
 
-const PAGE_TEXT: Record<string, object> = {
+const PARSE_HTML = `<div class="mw-parser-output"><p>트리거(Trigger)는 다음 뜻으로 쓰인다.</p>
+<div class="mw-heading mw-heading2"><h2 id="기본_의미">기본 의미</h2></div>
+<ul><li>트리거는 총의 <a href="/wiki/%EB%B0%A9%EC%95%84%EC%87%A0" title="방아쇠">방아쇠</a>를 뜻하는 사격용어이다.</li></ul>
+<div class="mw-heading mw-heading2"><h2 id="컴퓨터_과학">컴퓨터 과학</h2></div>
+<ul><li><a href="/wiki/%EB%8D%B0%EC%9D%B4%ED%84%B0%EB%B2%A0%EC%9D%B4%EC%8A%A4_%ED%8A%B8%EB%A6%AC%EA%B1%B0" title="데이터베이스 트리거">데이터베이스 트리거</a></li></ul>
+<div class="mw-heading mw-heading2"><h2 id="기업">기업</h2></div>
+<ul><li><a href="/wiki/%ED%8A%B8%EB%A6%AC%EA%B1%B0_(%EC%95%A0%EB%8B%88%EB%A9%94%EC%9D%B4%EC%85%98_%EC%A0%9C%EC%9E%91%EC%82%AC)" title="트리거 (애니메이션 제작사)">트리거 (애니메이션 제작사)</a>: 일본의 애니메이션 제작사</li></ul>
+<div class="mw-heading mw-heading2"><h2 id="사격">사격</h2></div>
+<ul><li><a href="/wiki/%EB%B0%A9%EC%95%84%EC%87%A0" title="방아쇠">트리거</a>(trigger)는 총의 방아쇠를 가리킨다.</li></ul>
+<div class="mw-heading mw-heading2"><h2 id="같이_보기">같이 보기</h2></div>
+<ul><li><a href="/wiki/%EB%B0%A9%EC%95%84%EC%87%A0_(%EB%8F%99%EC%9D%8C%EC%9D%B4%EC%9D%98)" title="방아쇠 (동음이의)">방아쇠 (동음이의)</a></li></ul></div>`;
+
+const PARSE: Record<string, object> = {
   트리거: {
-    query: {
-      pages: {
-        '1': {
-          title: '트리거',
-          extract:
-            '트리거(Trigger)는 다음 뜻으로 쓰인다.\n\n== 기본 의미 ==\n트리거는 총의 방아쇠를 뜻하는 사격용어이다.\n\n== 컴퓨터 과학 ==\n데이터베이스 트리거\n\n== 기업 ==\n트리거 (애니메이션 제작사): 일본의 애니메이션 제작사\n\n== 같이 보기 ==\n방아쇠 (동음이의)',
-        },
-      },
+    parse: {
+      title: '트리거',
+      pageid: 1,
+      text: PARSE_HTML,
+      links: [
+        '방아쇠',
+        '데이터베이스 트리거',
+        '트리거 (애니메이션 제작사)',
+        '방아쇠 (동음이의)',
+      ].map((title) => ({ ns: 0, title, exists: true })),
     },
   },
 };
@@ -100,10 +122,10 @@ async function routeFakeNetwork(context: BrowserContext): Promise<void> {
   await context.route(/ko\.wikipedia\.org\/w\/api\.php/, (route) => {
     const params = new URL(route.request().url()).searchParams;
     const title = params.get('titles') ?? '';
+    if (params.get('action') === 'parse')
+      return route.fulfill({ json: PARSE[params.get('page') ?? ''] ?? { parse: {} } });
     if (params.get('generator') === 'links')
       return route.fulfill({ json: LINKED[title] ?? { query: {} } });
-    if (params.get('prop') === 'extracts')
-      return route.fulfill({ json: PAGE_TEXT[title] ?? { query: {} } });
     return route.fulfill({ json: { query: { search: [] } } });
   });
   await context.route(/^https:\/\/(www\.google\.com|search\.naver\.com)\//, (route) =>
