@@ -82,15 +82,25 @@ const SUMMARIES = {
   },
 };
 
-const TRIGGER_TEXT = {
-  query: {
-    pages: {
-      1: {
-        title: '트리거',
-        extract:
-          '트리거(Trigger)는 다음 뜻으로 쓰인다.\n\n== 기본 의미 ==\n트리거는 총의 방아쇠를 뜻하는 사격용어이다.\n\n== 컴퓨터 과학 ==\n데이터베이스 트리거\n\n== 기업 ==\n트리거 (애니메이션 제작사): 일본의 애니메이션 제작사\n\n== 같이 보기 ==\n방아쇠 (동음이의)',
-      },
-    },
+// 확장이 뜻 모음 문서를 action=parse(HTML + 연결 목록)로 받으므로 같은 모양으로 꾸민다.
+const TRIGGER_PARSE_HTML = `<div class="mw-parser-output"><p>트리거(Trigger)는 다음 뜻으로 쓰인다.</p>
+<div class="mw-heading mw-heading2"><h2 id="기본_의미">기본 의미</h2></div>
+<ul><li>트리거는 총의 <a href="/wiki/%EB%B0%A9%EC%95%84%EC%87%A0" title="방아쇠">방아쇠</a>를 뜻하는 사격용어이다.</li></ul>
+<div class="mw-heading mw-heading2"><h2 id="컴퓨터_과학">컴퓨터 과학</h2></div>
+<ul><li><a href="/wiki/%EB%8D%B0%EC%9D%B4%ED%84%B0%EB%B2%A0%EC%9D%B4%EC%8A%A4_%ED%8A%B8%EB%A6%AC%EA%B1%B0" title="데이터베이스 트리거">데이터베이스 트리거</a></li></ul>
+<div class="mw-heading mw-heading2"><h2 id="기업">기업</h2></div>
+<ul><li><a href="/wiki/%ED%8A%B8%EB%A6%AC%EA%B1%B0_(%EC%95%A0%EB%8B%88%EB%A9%94%EC%9D%B4%EC%85%98_%EC%A0%9C%EC%9E%91%EC%82%AC)" title="트리거 (애니메이션 제작사)">트리거 (애니메이션 제작사)</a>: 일본의 애니메이션 제작사</li></ul>
+<div class="mw-heading mw-heading2"><h2 id="같이_보기">같이 보기</h2></div>
+<ul><li><a href="/wiki/%EB%B0%A9%EC%95%84%EC%87%A0_(%EB%8F%99%EC%9D%8C%EC%9D%B4%EC%9D%98)" title="방아쇠 (동음이의)">방아쇠 (동음이의)</a></li></ul></div>`;
+
+const TRIGGER_PARSE = {
+  parse: {
+    title: '트리거',
+    pageid: 1,
+    text: TRIGGER_PARSE_HTML,
+    links: ['방아쇠', '데이터베이스 트리거', '트리거 (애니메이션 제작사)', '방아쇠 (동음이의)'].map(
+      (title) => ({ ns: 0, title, exists: true }),
+    ),
   },
 };
 
@@ -124,8 +134,8 @@ async function routeFakeNetwork(context) {
   });
   await context.route(/ko\.wikipedia\.org\/w\/api\.php/, (route) => {
     const params = new URL(route.request().url()).searchParams;
+    if (params.get('action') === 'parse') return route.fulfill({ json: TRIGGER_PARSE });
     if (params.get('generator') === 'links') return route.fulfill({ json: TRIGGER_LINKED });
-    if (params.get('prop') === 'extracts') return route.fulfill({ json: TRIGGER_TEXT });
     return route.fulfill({ json: { query: { search: [] } } });
   });
 }
