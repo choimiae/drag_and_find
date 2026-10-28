@@ -2,14 +2,14 @@ const WIKI_PATH_PREFIX = '/wiki/';
 const WIKI_ORIGIN = 'https://ko.wikipedia.org';
 const REDLINK_MARK = 'redlink=1';
 const MAX_CODE_POINT = 0x10ffff;
-const NAMED_ENTITIES: Record<string, string> = {
-  amp: '&',
-  lt: '<',
-  gt: '>',
-  quot: '"',
-  apos: "'",
-  nbsp: ' ',
-};
+const NAMED_ENTITIES = new Map<string, string>([
+  ['amp', '&'],
+  ['lt', '<'],
+  ['gt', '>'],
+  ['quot', '"'],
+  ['apos', "'"],
+  ['nbsp', ' '],
+]);
 const ENTITY = /&(?:#(\d+)|#x([0-9a-f]+)|([a-z]+));/giu;
 const STYLE_OR_SCRIPT_BLOCK = /<(style|script)\b[^>]*>[\s\S]*?<\/\1\s*>/giu;
 const TAG = /<[^>]*>/gu;
@@ -18,7 +18,7 @@ const WHITESPACE_RUN = /\s+/gu;
 /** 자주 쓰는 HTML 엔티티(이름·10진·16진)를 글자로 바꾼다. 모르는 엔티티와 범위 밖 숫자는 그대로 둔다. */
 export function decodeEntities(text: string): string {
   return text.replace(ENTITY, (whole, decimal?: string, hex?: string, name?: string) => {
-    if (name !== undefined) return NAMED_ENTITIES[name.toLowerCase()] ?? whole;
+    if (name !== undefined) return NAMED_ENTITIES.get(name.toLowerCase()) ?? whole;
     const codePoint = decimal !== undefined ? Number(decimal) : parseInt(hex ?? '', 16);
     return codePoint <= MAX_CODE_POINT ? String.fromCodePoint(codePoint) : whole;
   });
@@ -38,9 +38,17 @@ export function wikiTitleFromHref(href: string): string | null {
     return titleOrNull(safeDecodeURIComponent(path));
   }
   if (decoded.includes(REDLINK_MARK)) {
-    return titleOrNull(new URL(decoded, WIKI_ORIGIN).searchParams.get('title'));
+    return titleOrNull(safeTitleParam(decoded));
   }
   return null;
+}
+
+function safeTitleParam(href: string): string | null {
+  try {
+    return new URL(href, WIKI_ORIGIN).searchParams.get('title');
+  } catch {
+    return null;
+  }
 }
 
 function safeDecodeURIComponent(value: string): string | null {

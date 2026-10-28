@@ -20,6 +20,10 @@ describe('decodeEntities', () => {
     expect(decodeEntities('&foo;')).toBe('&foo;');
   });
 
+  it('leaves names that exist on Object.prototype as they are', () => {
+    expect(decodeEntities('&constructor;')).toBe('&constructor;');
+  });
+
   it('leaves out-of-range numeric entities as they are', () => {
     expect(decodeEntities('&#x110000;')).toBe('&#x110000;');
   });
@@ -78,6 +82,7 @@ describe('wikiTitleFromHref', () => {
     '/w/index.php?title=A&action=history',
     '/wiki/',
     '/wiki/%E0%A4%A',
+    'http://[redlink=1',
   ])('returns null for %s', (href) => {
     expect(wikiTitleFromHref(href)).toBeNull();
   });
