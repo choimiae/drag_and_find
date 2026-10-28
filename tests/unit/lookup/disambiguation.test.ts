@@ -192,9 +192,9 @@ describe('parseDisambiguationHtml', () => {
 
   it('skips footnote and external links', () => {
     const html =
-      '<ul><li><a href="#cite_note-1">[1]</a><a href="https://example.com/">x</a>A</li></ul>';
+      '<ul><li><a href="#cite_note-1">[1]</a><a href="https://example.com/">x</a><a href="/wiki/A">A</a></li></ul>';
 
-    expect(parse(html).meanings[0]?.title).toBeNull();
+    expect(parse(html, [{ ns: 0, title: 'A', exists: true }]).meanings[0]?.title).toBe('A');
   });
 
   it('stops at a missing first link instead of moving to later links', () => {
