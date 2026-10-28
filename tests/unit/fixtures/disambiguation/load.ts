@@ -1,5 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
+import type { ParsedLink } from '../../../../lib/lookup/disambiguation';
 
 interface ApiPage {
   title?: string;
@@ -9,6 +10,10 @@ interface ApiPage {
 
 interface ApiResponse {
   query?: { pages?: Record<string, ApiPage> };
+}
+
+interface ParseApiResponse {
+  parse?: { text?: unknown; links?: unknown };
 }
 
 const DIR = resolve(process.cwd(), 'tests/unit/fixtures/disambiguation');
@@ -37,4 +42,29 @@ export function linkedPages(word: string): Array<{ title: string; extract: strin
   return Object.values(read('linked', word).query?.pages ?? {}).flatMap((page) =>
     page.title && page.extract ? [{ title: page.title, extract: page.extract }] : [],
   );
+}
+
+/** 뜻 모음 문서 HTML 응답 원본. */
+export function parseResponse(word: string): ParseApiResponse {
+  return JSON.parse(
+    readFileSync(resolve(DIR, 'parse', `${word}.json`), 'utf8'),
+  ) as ParseApiResponse;
+}
+
+/** 뜻 모음 문서 본문 HTML. */
+export function parseHtml(word: string): string {
+  const text = parseResponse(word).parse?.text;
+  return typeof text === 'string' ? text : '';
+}
+
+/** 뜻 모음 문서의 연결 목록 중 형식이 맞는 항목만. */
+export function parseLinks(word: string): ParsedLink[] {
+  const links = parseResponse(word).parse?.links;
+  if (!Array.isArray(links)) return [];
+  return links.flatMap((link: unknown) => {
+    const { ns, title, exists } = (link ?? {}) as Record<string, unknown>;
+    return typeof ns === 'number' && typeof title === 'string' && typeof exists === 'boolean'
+      ? [{ ns, title, exists }]
+      : [];
+  });
 }
