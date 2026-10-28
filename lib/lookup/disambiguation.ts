@@ -31,75 +31,96 @@ function startsSkippedBlock(name: string, tag: string): boolean {
   return SKIPPED_BLOCKS.has(name) || (REFERENCES_BLOCKS.has(name) && REFERENCES_CLASS.test(tag));
 }
 
+/** 훑는 동안 바뀌는 상태 한 벌. */
+interface ScanState {
+  readonly html: string;
+  readonly linkByTitle: Map<string, ParsedLink>;
+  readonly basic: string[];
+  readonly meanings: Meaning[];
+  skipName: string;
+  skipDepth: number;
+  headingStart: number | null;
+  itemStart: number | null;
+  inBasic: boolean;
+  basicTaken: boolean;
+}
+
+function closeItem(state: ScanState, itemEnd: number): void {
+  if (state.itemStart === null) return;
+  const raw = state.html.slice(state.itemStart, itemEnd).replace(FOOTNOTE_MARKER, '');
+  state.itemStart = null;
+  const text = stripTags(raw);
+  if (!text) return;
+  if (state.inBasic) state.basic.push(text);
+  else
+    state.meanings.push({
+      label: labelOf(text),
+      title: firstArticleTarget(raw, state.linkByTitle),
+    });
+}
+
+/** 제목이 끝났을 때 호출한다. 끝 구역 제목이면 true(훑기 중단). */
+function closeHeading(state: ScanState, headingEnd: number): boolean {
+  if (state.headingStart === null) return false;
+  const heading = stripTags(state.html.slice(state.headingStart, headingEnd));
+  state.headingStart = null;
+  if (STOP_HEADINGS.has(heading)) return true;
+  state.inBasic = !state.basicTaken && heading.includes(BASIC_SECTION_MARK);
+  state.basicTaken ||= state.inBasic;
+  return false;
+}
+
+/** 태그 하나를 처리한다. 훑기를 멈춰야 하면 true. */
+function handleTag(state: ScanState, match: RegExpMatchArray & { index: number }): boolean {
+  const isClosing = match[1] === '/';
+  const name = (match[2] ?? '').toLowerCase();
+  const start = match.index;
+  const end = start + match[0].length;
+
+  if (state.skipDepth > 0) {
+    if (name === state.skipName) state.skipDepth += isClosing ? -1 : 1;
+    return false;
+  }
+  if (!isClosing && startsSkippedBlock(name, match[0])) {
+    // 각주 목록은 옛 글자 방식에서도 보이지 않았고, 각주 안의 첫 링크는 뜻이 아니라 출처다.
+    state.skipName = name;
+    state.skipDepth = 1;
+  } else if (name.startsWith('h')) {
+    if (!isClosing) {
+      closeItem(state, start);
+      state.headingStart = end;
+    } else return closeHeading(state, start);
+  } else if (name === 'li' && !isClosing) {
+    closeItem(state, start);
+    state.itemStart = end;
+  } else if (name === 'li' || (LIST_TAGS.has(name) && !isClosing)) {
+    // 안쪽 목록이 열리면 바깥 항목은 거기서 끝난다 — 안쪽 항목과 글자가 섞이지 않게 한다.
+    closeItem(state, start);
+  }
+  return false;
+}
+
 /** 뜻 모음 문서 HTML에서 기본 뜻 글자와 뜻 항목(첫 문서 링크 포함)을 꺼낸다. 첫 소개 문단은 목록이 아니라 자연히 빠지고 '같이 보기'·'각주' 등 끝 구역 이후는 버린다. */
 export function parseDisambiguationHtml(
   html: string,
   links: readonly ParsedLink[],
 ): { basic: string[]; meanings: Meaning[] } {
-  const linkByTitle = new Map(links.map((link) => [link.title, link]));
-  const basic: string[] = [];
-  const meanings: Meaning[] = [];
-  let skipName = '';
-  let skipDepth = 0;
-  let headingStart: number | null = null;
-  let itemStart: number | null = null;
-  let inBasic = false;
-  let basicTaken = false;
-
-  const closeItem = (itemEnd: number): void => {
-    if (itemStart === null) return;
-    const raw = html.slice(itemStart, itemEnd).replace(FOOTNOTE_MARKER, '');
-    itemStart = null;
-    const text = stripTags(raw);
-    if (!text) return;
-    if (inBasic) basic.push(text);
-    else meanings.push({ label: labelOf(text), title: firstArticleTarget(raw, linkByTitle) });
+  const state: ScanState = {
+    html,
+    linkByTitle: new Map(links.map((link) => [link.title, link])),
+    basic: [],
+    meanings: [],
+    skipName: '',
+    skipDepth: 0,
+    headingStart: null,
+    itemStart: null,
+    inBasic: false,
+    basicTaken: false,
   };
-
-  /** 제목이 끝났을 때 호출한다. 끝 구역 제목이면 true(훑기 중단). */
-  const closeHeading = (headingEnd: number): boolean => {
-    if (headingStart === null) return false;
-    const heading = stripTags(html.slice(headingStart, headingEnd));
-    headingStart = null;
-    if (STOP_HEADINGS.has(heading)) return true;
-    inBasic = !basicTaken && heading.includes(BASIC_SECTION_MARK);
-    basicTaken ||= inBasic;
-    return false;
-  };
-
   for (const match of html.matchAll(SCANNED_TAG)) {
-    const isClosing = match[1] === '/';
-    const name = (match[2] ?? '').toLowerCase();
-    const start = match.index;
-    const end = start + match[0].length;
-
-    if (skipDepth > 0) {
-      if (name === skipName) skipDepth += isClosing ? -1 : 1;
-      continue;
-    }
-    if (!isClosing && startsSkippedBlock(name, match[0])) {
-      // 각주 목록은 옛 글자 방식에서도 보이지 않았고, 각주 안의 첫 링크는 뜻이 아니라 출처다.
-      skipName = name;
-      skipDepth = 1;
-      continue;
-    }
-
-    if (name.startsWith('h')) {
-      if (!isClosing) {
-        closeItem(start);
-        headingStart = end;
-      } else if (closeHeading(start)) {
-        break;
-      }
-    } else if (name === 'li' && !isClosing) {
-      closeItem(start);
-      itemStart = end;
-    } else if (name === 'li' || (LIST_TAGS.has(name) && !isClosing)) {
-      // 안쪽 목록이 열리면 바깥 항목은 거기서 끝난다 — 안쪽 항목과 글자가 섞이지 않게 한다.
-      closeItem(start);
-    }
+    if (handleTag(state, match)) break;
   }
-  return { basic, meanings };
+  return { basic: state.basic, meanings: state.meanings };
 }
 
 function firstArticleTarget(rawItem: string, linkByTitle: Map<string, ParsedLink>): string | null {

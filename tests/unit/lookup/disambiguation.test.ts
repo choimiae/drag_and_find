@@ -166,18 +166,18 @@ describe('parseDisambiguationHtml', () => {
       { ns: 0, title: 'A', exists: true },
       { ns: 0, title: 'B', exists: true },
     ];
-    const headingThenRefs = (heading: string) =>
-      `<ul><li><a href="/wiki/A">A</a></li></ul><div class="mw-heading mw-heading2"><h2 id="x">${heading}</h2></div><ol class="references"><li><a href="/wiki/B">B</a> 설명</li></ol><div class="mw-heading mw-heading2"><h2 id="같이_보기">같이 보기</h2></div>`;
+    const headingThenList = (heading: string) =>
+      `<ul><li><a href="/wiki/A">A</a></li></ul><div class="mw-heading mw-heading2"><h2 id="x">${heading}</h2></div><ul><li><a href="/wiki/B">B</a></li></ul><div class="mw-heading mw-heading2"><h2 id="같이_보기">같이 보기</h2></div>`;
 
     it('stops at a footnote heading before see-also', () => {
-      const { meanings } = parse(headingThenRefs('각주'), LINKS);
+      const { meanings } = parse(headingThenList('각주'), LINKS);
 
       expect(meanings).toHaveLength(1);
       expect(meanings[0]?.title).toBe('A');
     });
 
     it.each(['출처', '참고 문헌', '외부 링크'])('stops at the %s heading', (heading) => {
-      expect(parse(headingThenRefs(heading), LINKS).meanings).toHaveLength(1);
+      expect(parse(headingThenList(heading), LINKS).meanings).toHaveLength(1);
     });
 
     it('skips a references list that has no heading', () => {
