@@ -1,7 +1,7 @@
 import { stripTags, wikiTitleFromHref } from './html-text';
 import type { Meaning } from './types';
 
-const SEE_ALSO_SECTION = '같이 보기';
+const STOP_HEADINGS = new Set(['같이 보기', '각주', '출처', '참고 문헌', '외부 링크']);
 const BASIC_SECTION_MARK = '기본';
 
 function labelOf(line: string): string {
@@ -17,12 +17,21 @@ export interface ParsedLink {
 }
 
 const ARTICLE_NAMESPACE = 0;
-const SCANNED_TAG = /<(\/?)(table|style|script|h[2-4]|ul|ol|li)(?=[\s>/])[^>]*>/giu;
+const SCANNED_TAG = /<(\/?)(table|style|script|h[2-4]|ul|ol|li|div)(?=[\s>/])[^>]*>/giu;
 const ANCHOR_HREF = /<a\s[^>]*?href="([^"]*)"/giu;
+const REFERENCES_CLASS = /\bclass="(?:[^"]*\s)?(?:references|mw-references-wrap)(?:\s[^"]*)?"/iu;
+const FOOTNOTE_MARKER =
+  /<sup\b[^>]*\bclass="(?:[^"]*\s)?reference(?:\s[^"]*)?"[^>]*>[\s\S]*?<\/sup\s*>/giu;
 const SKIPPED_BLOCKS = new Set(['table', 'style', 'script']);
+const REFERENCES_BLOCKS = new Set(['ol', 'div']);
 const LIST_TAGS = new Set(['ul', 'ol']);
 
-/** 뜻 모음 문서 HTML에서 기본 뜻 글자와 뜻 항목(첫 문서 링크 포함)을 꺼낸다. 첫 소개 문단은 목록이 아니라 자연히 빠지고 '같이 보기' 이후는 버린다. */
+/** 건너뛸 덩어리를 여는 태그인가: 표·스타일·스크립트, 또는 각주 목록(class에 references·mw-references-wrap이 있는 ol·div). */
+function startsSkippedBlock(name: string, tag: string): boolean {
+  return SKIPPED_BLOCKS.has(name) || (REFERENCES_BLOCKS.has(name) && REFERENCES_CLASS.test(tag));
+}
+
+/** 뜻 모음 문서 HTML에서 기본 뜻 글자와 뜻 항목(첫 문서 링크 포함)을 꺼낸다. 첫 소개 문단은 목록이 아니라 자연히 빠지고 '같이 보기'·'각주' 등 끝 구역 이후는 버린다. */
 export function parseDisambiguationHtml(
   html: string,
   links: readonly ParsedLink[],
@@ -30,6 +39,7 @@ export function parseDisambiguationHtml(
   const linkByTitle = new Map(links.map((link) => [link.title, link]));
   const basic: string[] = [];
   const meanings: Meaning[] = [];
+  let skipName = '';
   let skipDepth = 0;
   let headingStart: number | null = null;
   let itemStart: number | null = null;
@@ -38,12 +48,23 @@ export function parseDisambiguationHtml(
 
   const closeItem = (itemEnd: number): void => {
     if (itemStart === null) return;
-    const raw = html.slice(itemStart, itemEnd);
+    const raw = html.slice(itemStart, itemEnd).replace(FOOTNOTE_MARKER, '');
     itemStart = null;
     const text = stripTags(raw);
     if (!text) return;
     if (inBasic) basic.push(text);
     else meanings.push({ label: labelOf(text), title: firstArticleTarget(raw, linkByTitle) });
+  };
+
+  /** 제목이 끝났을 때 호출한다. 끝 구역 제목이면 true(훑기 중단). */
+  const closeHeading = (headingEnd: number): boolean => {
+    if (headingStart === null) return false;
+    const heading = stripTags(html.slice(headingStart, headingEnd));
+    headingStart = null;
+    if (STOP_HEADINGS.has(heading)) return true;
+    inBasic = !basicTaken && heading.includes(BASIC_SECTION_MARK);
+    basicTaken ||= inBasic;
+    return false;
   };
 
   for (const match of html.matchAll(SCANNED_TAG)) {
@@ -52,24 +73,24 @@ export function parseDisambiguationHtml(
     const start = match.index;
     const end = start + match[0].length;
 
-    if (SKIPPED_BLOCKS.has(name)) {
-      skipDepth = Math.max(0, skipDepth + (isClosing ? -1 : 1));
+    if (skipDepth > 0) {
+      if (name === skipName) skipDepth += isClosing ? -1 : 1;
       continue;
     }
-    if (skipDepth > 0) continue;
+    if (!isClosing && startsSkippedBlock(name, match[0])) {
+      // 각주 목록은 옛 글자 방식에서도 보이지 않았고, 각주 안의 첫 링크는 뜻이 아니라 출처다.
+      skipName = name;
+      skipDepth = 1;
+      continue;
+    }
 
     if (name.startsWith('h')) {
       if (!isClosing) {
         closeItem(start);
         headingStart = end;
-        continue;
+      } else if (closeHeading(start)) {
+        break;
       }
-      if (headingStart === null) continue;
-      const heading = stripTags(html.slice(headingStart, start));
-      headingStart = null;
-      if (heading === SEE_ALSO_SECTION) break;
-      inBasic = !basicTaken && heading.includes(BASIC_SECTION_MARK);
-      basicTaken ||= inBasic;
     } else if (name === 'li' && !isClosing) {
       closeItem(start);
       itemStart = end;

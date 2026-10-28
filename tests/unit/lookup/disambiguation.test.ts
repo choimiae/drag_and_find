@@ -61,7 +61,7 @@ describe('parseDisambiguationHtml', () => {
     expect(meanings.find((m) => m.label.startsWith('비즈니스 모델'))?.title).toBe('비즈니스 모델');
   });
 
-  it.each(['버블', '커널', '터미널', '스레드'])(
+  it.each(['버블', '커널', '터미널', '스레드', '원'])(
     'resolves only existing article links (%s)',
     (word) => {
       const links = parseLinks(word);
@@ -159,6 +159,60 @@ describe('parseDisambiguationHtml', () => {
     const html = '<ul><li>a</li></ul><h2>같이 보기</h2><ul><li>b</li></ul>';
 
     expect(parse(html).meanings).toHaveLength(1);
+  });
+
+  describe('footnotes', () => {
+    const LINKS = [
+      { ns: 0, title: 'A', exists: true },
+      { ns: 0, title: 'B', exists: true },
+    ];
+    const headingThenRefs = (heading: string) =>
+      `<ul><li><a href="/wiki/A">A</a></li></ul><div class="mw-heading mw-heading2"><h2 id="x">${heading}</h2></div><ol class="references"><li><a href="/wiki/B">B</a> 설명</li></ol><div class="mw-heading mw-heading2"><h2 id="같이_보기">같이 보기</h2></div>`;
+
+    it('stops at a footnote heading before see-also', () => {
+      const { meanings } = parse(headingThenRefs('각주'), LINKS);
+
+      expect(meanings).toHaveLength(1);
+      expect(meanings[0]?.title).toBe('A');
+    });
+
+    it.each(['출처', '참고 문헌', '외부 링크'])('stops at the %s heading', (heading) => {
+      expect(parse(headingThenRefs(heading), LINKS).meanings).toHaveLength(1);
+    });
+
+    it('skips a references list that has no heading', () => {
+      const html =
+        '<ul><li><a href="/wiki/A">A</a></li></ul><div class="mw-references-wrap"><ol class="references"><li><a href="/wiki/B">B</a></li></ol></div>';
+      const { meanings } = parse(html, LINKS);
+
+      expect(meanings).toHaveLength(1);
+      expect(meanings[0]?.title).toBe('A');
+    });
+
+    it('keeps reading after heading wrapper divs', () => {
+      const html =
+        '<div class="mw-heading mw-heading2"><h2 id="a">가</h2></div><ul><li>a</li></ul><div class="mw-heading mw-heading2"><h2 id="b">나</h2></div><ul><li>b</li></ul>';
+
+      expect(parse(html).meanings).toHaveLength(2);
+    });
+
+    it('drops footnote markers from item text', () => {
+      const html =
+        '<ul><li><a href="/wiki/A">A (서울특별시)</a><sup id="cite_ref-1" class="reference"><a href="#cite_note-1">&#91;1&#93;</a></sup>: 설명</li></ul>';
+
+      expect(parse(html, LINKS).meanings[0]?.label).toBe('A (서울특별시)');
+    });
+
+    it('ignores footnote lists and markers on a real page (원)', () => {
+      const { meanings } = fixture('원');
+
+      expect(meanings.length).toBeGreaterThan(0);
+      for (const meaning of meanings) {
+        expect(meaning.label).not.toContain('↑');
+        expect(meaning.label).not.toMatch(/\[\d+\]/u);
+        expect(meaning.title).not.toBe('국가디지털콘텐츠식별체계');
+      }
+    });
   });
 
   it('drops empty items', () => {

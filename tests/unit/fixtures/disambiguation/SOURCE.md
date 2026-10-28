@@ -5,11 +5,11 @@
 https://creativecommons.org/licenses/by-sa/4.0/deed.ko
 
 - `linked/<단어>.json` (2026-10-24): `generator=links&prop=extracts&exintro=1&explaintext=1&exlimit=20&exchars=300` 응답 (연결 문서 첫 문단)
-- `parse/<단어>.json` (2026-10-28): `action=parse&prop=text|links` 응답 (뜻 모음 문서 HTML과 연결 목록). 실제로 실행한 명령(저장소 루트에서):
+- `parse/<단어>.json` (2026-10-28, `원`은 같은 날 같은 명령으로 추가 — 각주 목록과 각주 번호가 있는 문서): `action=parse&prop=text|links` 응답 (뜻 모음 문서 HTML과 연결 목록). 실제로 실행한 명령(저장소 루트에서):
 
 ```bash
 mkdir -p tests/unit/fixtures/disambiguation/parse
-for w in 모델 버블 커널 터미널 스레드 트리거 마진 포트 플랫폼; do
+for w in 모델 버블 커널 터미널 스레드 트리거 마진 포트 플랫폼 원; do
   curl -sS -G -A "DragAndFind-fixtures/1.0 (maestro001220@gmail.com)" "https://ko.wikipedia.org/w/api.php" \
     --data-urlencode "action=parse" --data-urlencode "page=$w" --data-urlencode "prop=text|links" \
     --data-urlencode "formatversion=2" --data-urlencode "disabletoc=1" \

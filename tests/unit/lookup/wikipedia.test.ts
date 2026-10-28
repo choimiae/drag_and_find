@@ -295,8 +295,8 @@ describe('disambiguation pages', () => {
       parse: () =>
         json({
           parse: {
-            text: '<ul><li><a href="/wiki/A">A</a></li></ul>',
-            links: [{ ns: 0, title: 'A' }, 'junk', null],
+            text: '<ul><li><a href="/wiki/A">A</a></li><li><a href="/wiki/B">B</a></li></ul>',
+            links: [{ ns: 0, title: 'A' }, 'junk', null, { ns: 0, title: 'B', exists: true }],
           },
         }),
     });
@@ -304,7 +304,10 @@ describe('disambiguation pages', () => {
     const result = await provider(fetchFn).lookup('트리거');
 
     if (result.status !== 'found' || !result.disambiguation) throw new Error('no disambiguation');
-    expect(result.disambiguation.meanings).toEqual([{ label: 'A', title: null }]);
+    expect(result.disambiguation.meanings).toEqual([
+      { label: 'A', title: null },
+      { label: 'B', title: 'B' },
+    ]);
   });
 
   it('keeps the plain disambiguation result when an extra request fails', async () => {
