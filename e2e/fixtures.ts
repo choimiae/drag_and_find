@@ -1,13 +1,14 @@
 import { test as base, chromium, type BrowserContext, type Worker } from '@playwright/test';
 import path from 'node:path';
 
-const EXTENSION_PATH = path.resolve('.output/chrome-mv3');
+const EXTENSION_PATH = path.resolve('.output/chrome-mv3-e2e');
 export const ARTICLE_URL = 'https://example.test/article';
 
 const ARTICLE_HTML = `<!doctype html>
 <html lang="ko"><head><meta charset="utf-8"><title>기사</title></head>
 <body style="padding:40px;font-size:18px">
   <p>요즘 스타트업에서는 <span id="known">온보딩</span> 과정을 자동화하는 사례가 늘고 있다.</p>
+  <p><span id="naver-known">인공지능</span> 기술을 살펴보자.</p>
   <p>젊은 세대 사이에서는 <span id="unknown">갓생</span> 이라는 말이 유행한다.</p>
   <p>주문 테이블에 행이 추가될 때마다 재고를 줄이도록 <span id="ambiguous">트리거</span> 기능을 걸어 두었다.</p>
 </body></html>`;
@@ -110,6 +111,66 @@ async function routeFakeNetwork(context: BrowserContext): Promise<void> {
   await context.route('https://example.test/frame-article', (route) =>
     route.fulfill({ contentType: 'text/html', body: FRAME_ARTICLE_HTML }),
   );
+  await context.route('https://lookup.example.test/lookup**', (route) => {
+    const query = new URL(route.request().url()).searchParams.get('query') ?? '';
+    if (query === '인공지능')
+      return route.fulfill({
+        json: {
+          status: 'found',
+          source: 'naver',
+          title: '인공지능',
+          extract: '컴퓨터가 학습과 추론을 하는 기술',
+          url: 'https://terms.naver.com/entry.naver?docId=1',
+          isDisambiguation: false,
+        },
+      });
+    if (query === '트리거')
+      return route.fulfill({
+        json: {
+          status: 'found',
+          source: 'wikipedia',
+          title: '트리거',
+          extract: '',
+          url: 'https://ko.wikipedia.org/wiki/%ED%8A%B8%EB%A6%AC%EA%B1%B0',
+          isDisambiguation: true,
+          disambiguation: {
+            basic: ['총의 방아쇠를 뜻하는 사격용어이다.'],
+            meanings: [
+              { label: '데이터베이스 트리거', title: '데이터베이스 트리거' },
+              { label: '트리거 (애니메이션 제작사)', title: '트리거 (애니메이션 제작사)' },
+              { label: '총의 방아쇠를 가리킨다', title: '방아쇠' },
+            ],
+            candidates: [
+              {
+                title: '데이터베이스 트리거',
+                extract:
+                  '데이터베이스 트리거는 테이블에 행이 추가되거나 바뀔 때 자동으로 실행되는 절차이다.',
+                url: 'https://ko.wikipedia.org/wiki/x',
+              },
+              {
+                title: '방아쇠',
+                extract: '방아쇠는 총의 격발 장치이다.',
+                url: 'https://ko.wikipedia.org/wiki/%EB%B0%A9%EC%95%84%EC%87%A0',
+              },
+            ],
+          },
+        },
+      });
+    const summary = SUMMARIES[query];
+    if (summary)
+      return route.fulfill({
+        json: {
+          status: 'found',
+          source: 'wikipedia',
+          title: query,
+          extract: (summary as { extract: string }).extract,
+          url: (summary as { content_urls: { desktop: { page: string } } }).content_urls.desktop
+            .page,
+          isDisambiguation: false,
+        },
+      });
+    return route.fulfill({ json: { status: 'not_found' } });
+  });
   await context.route('https://ko.wikipedia.org/api/rest_v1/page/summary/**', (route) => {
     const title = decodeURIComponent(
       new URL(route.request().url()).pathname.split('/').pop() ?? '',
@@ -128,6 +189,8 @@ async function routeFakeNetwork(context: BrowserContext): Promise<void> {
       return route.fulfill({ json: LINKED[title] ?? { query: {} } });
     return route.fulfill({ json: { query: { search: [] } } });
   });
+  // 확장은 Worker만 호출해야 한다. 이 라우트가 실행되면 직접 위키백과 호출을 오류로 만든다.
+  await context.route('https://ko.wikipedia.org/**', (route) => route.abort());
   await context.route(/^https:\/\/(www\.google\.com|search\.naver\.com)\//, (route) =>
     route.fulfill({ contentType: 'text/html', body: '<p>search</p>' }),
   );

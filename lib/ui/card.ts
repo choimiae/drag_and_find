@@ -82,7 +82,7 @@ function bodyContent(doc: Document, state: CardState, handlers: CardHandlers): N
     case 'found':
       return foundContent(doc, result, handlers.onSelectMeaning);
     case 'not_found':
-      return [doc.createTextNode('위키백과에 문서가 없습니다')];
+      return [doc.createTextNode('네이버 백과와 위키백과에 결과가 없습니다')];
     case 'rate_limited':
       return [doc.createTextNode('요청이 많아 잠시 막혔습니다. 잠시 후 다시 시도해 주세요')];
     case 'network_error':
@@ -98,17 +98,21 @@ function foundContent(
   if (!result.isDisambiguation) {
     return [
       element(doc, 'p', { className: 'card-extract', role: 'extract', text: result.extract }),
-      wikiLink(doc, result.url),
-      attribution(doc),
+      sourceLink(doc, result),
+      attribution(doc, result),
     ];
   }
   if (!result.disambiguation) {
-    return [message(doc, '뜻이 여러 개인 단어입니다'), wikiLink(doc, result.url), attribution(doc)];
+    return [
+      message(doc, '뜻이 여러 개인 단어입니다'),
+      sourceLink(doc, result),
+      attribution(doc, result),
+    ];
   }
   return [
     ...disambiguationContent(doc, result.disambiguation, result.suggestion, onSelect),
-    wikiLink(doc, result.url),
-    attribution(doc),
+    sourceLink(doc, result),
+    attribution(doc, result),
   ];
 }
 
@@ -309,13 +313,24 @@ function message(doc: Document, text: string): HTMLElement {
   return element(doc, 'p', { className: 'card-message', text });
 }
 
-function wikiLink(doc: Document, url: string): HTMLElement {
-  return externalLink(doc, url, '위키백과에서 보기 →', 'wiki-link', 'card-link');
+function sourceLink(doc: Document, result: FoundResult): HTMLElement {
+  const naver = result.source === 'naver';
+  return externalLink(
+    doc,
+    result.url,
+    naver ? '네이버 백과에서 보기 →' : '위키백과에서 보기 →',
+    naver ? 'source-link' : 'wiki-link',
+    'card-link',
+  );
 }
 
 /** 위키백과 글을 보여 줄 때 붙이는 출처·라이선스 표기. */
-function attribution(doc: Document): HTMLElement {
+function attribution(doc: Document, result: FoundResult): HTMLElement {
   const line = element(doc, 'p', { className: 'card-attribution', role: 'attribution' });
+  if (result.source === 'naver') {
+    line.textContent = '출처: 네이버 백과 검색 결과';
+    return line;
+  }
   line.append(
     doc.createTextNode('출처: 위키백과 ('),
     externalLink(doc, LICENSE_URL, 'CC BY-SA 4.0', 'license-link', 'card-license'),

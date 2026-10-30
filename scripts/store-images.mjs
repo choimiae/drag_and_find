@@ -1,11 +1,11 @@
-// 웹스토어 등록용 이미지를 docs/store/images/에 만든다. 빌드된 확장(.output/chrome-mv3)이 필요하다.
+// 웹스토어 등록용 이미지를 docs/store/images/에 만든다. E2E 설정으로 빌드된 확장이 필요하다.
 // 실행: pnpm store:images  (빌드 포함). 외부 서버에는 접속하지 않고 가짜 응답만 쓴다.
 import { mkdir } from 'node:fs/promises';
 import { URL, fileURLToPath } from 'node:url';
 import { chromium } from '@playwright/test';
 
 const root = new URL('../', import.meta.url);
-const extensionPath = fileURLToPath(new URL('.output/chrome-mv3', root));
+const extensionPath = fileURLToPath(new URL('.output/chrome-mv3-e2e', root));
 const outputDir = new URL('docs/store/images/', root);
 const outputPath = (name) => fileURLToPath(new URL(name, outputDir));
 
@@ -137,6 +137,59 @@ async function routeFakeNetwork(context) {
     if (params.get('action') === 'parse') return route.fulfill({ json: TRIGGER_PARSE });
     if (params.get('generator') === 'links') return route.fulfill({ json: TRIGGER_LINKED });
     return route.fulfill({ json: { query: { search: [] } } });
+  });
+  await context.route('https://lookup.example.test/lookup**', (route) => {
+    const query = new URL(route.request().url()).searchParams.get('query');
+    if (query === '온보딩') {
+      return route.fulfill({
+        json: {
+          status: 'found',
+          source: 'naver',
+          title: '온보딩',
+          extract: SUMMARIES.온보딩.extract,
+          url: 'https://terms.naver.com/entry.naver?docId=1',
+          isDisambiguation: false,
+        },
+      });
+    }
+    if (query === '트리거') {
+      return route.fulfill({
+        json: {
+          status: 'found',
+          source: 'wikipedia',
+          title: '트리거',
+          extract: SUMMARIES.트리거.extract,
+          url: SUMMARIES.트리거.content_urls.desktop.page,
+          isDisambiguation: true,
+          disambiguation: {
+            basic: ['총의 방아쇠를 뜻하는 사격용어이다.'],
+            meanings: [
+              { label: '데이터베이스 트리거', title: '데이터베이스 트리거' },
+              { label: '트리거 (애니메이션 제작사)', title: '트리거 (애니메이션 제작사)' },
+              { label: '총의 방아쇠', title: '방아쇠' },
+            ],
+            candidates: Object.values(TRIGGER_LINKED.query.pages).map((item) => ({
+              title: item.title,
+              extract: item.extract,
+              url: `https://ko.wikipedia.org/wiki/${encodeURIComponent(item.title)}`,
+            })),
+          },
+        },
+      });
+    }
+    const summary = SUMMARIES[query];
+    return route.fulfill({
+      json: summary
+        ? {
+            status: 'found',
+            source: 'wikipedia',
+            title: summary.title,
+            extract: summary.extract,
+            url: summary.content_urls.desktop.page,
+            isDisambiguation: false,
+          }
+        : { status: 'not_found' },
+    });
   });
 }
 

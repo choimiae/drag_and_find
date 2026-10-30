@@ -8,8 +8,9 @@ export type LookupService = (query: string, context?: string) => Promise<LookupR
  * 캐시를 먼저 보고, 없으면 출처에 물어 저장한다. 대소문자만 다른 검색어는 같은 것으로 본다.
  * 문맥에 따른 뜻 선택은 저장하지 않고 찾을 때마다 계산한다.
  */
-export function createLookupService(provider: LookupProvider, cache: LookupCache): LookupService {
+export function createLookupService(provider: LookupProvider, cache?: LookupCache): LookupService {
   return async (query, context) => {
+    if (!cache) return withSuggestion(await provider.lookup(query), query, context);
     const key = query.toLowerCase();
     const cached = await cache.get(key).catch(() => undefined); // 캐시는 속도를 위한 것이라 읽기 실패는 없는 것으로 본다
     const result = cached ?? (await provider.lookup(query));

@@ -73,6 +73,7 @@ export function createWikipediaKoProvider({
     if (!data?.title) return null;
     return {
       status: 'found',
+      source: 'wikipedia',
       title: data.title,
       extract: data.extract ?? '',
       url: articleUrl(data.content_urls?.desktop?.page, data.title),

@@ -51,6 +51,7 @@ describe('createWikipediaKoProvider', () => {
 
     expect(result).toEqual({
       status: 'found',
+      source: 'wikipedia',
       title: '온보딩',
       extract: '온보딩 설명',
       url: 'https://ko.wikipedia.org/wiki/%EC%98%A8%EB%B3%B4%EB%94%A9',

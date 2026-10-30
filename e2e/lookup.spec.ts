@@ -20,10 +20,20 @@ test('드래그 후 아이콘을 누르면 위키백과 요약 카드가 뜬다'
   );
 });
 
+test('네이버 백과 결과는 네이버 출처와 원문 링크를 보여 준다', async ({ page }) => {
+  await openArticleAndLookUp(page, 'naver-known');
+  await expect(role(page, 'extract')).toContainText('학습과 추론');
+  await expect(role(page, 'source-link')).toHaveAttribute(
+    'href',
+    'https://terms.naver.com/entry.naver?docId=1',
+  );
+  await expect(role(page, 'attribution')).toContainText('네이버 백과');
+});
+
 test('위키백과에 없는 단어는 안내 문구와 검색 버튼을 보여 준다', async ({ page }) => {
   await openArticleAndLookUp(page, 'unknown');
 
-  await expect(role(page, 'body')).toHaveText('위키백과에 문서가 없습니다');
+  await expect(role(page, 'body')).toHaveText('네이버 백과와 위키백과에 결과가 없습니다');
   await expect(role(page, 'google')).toBeVisible();
   await expect(role(page, 'naver')).toBeVisible();
 });

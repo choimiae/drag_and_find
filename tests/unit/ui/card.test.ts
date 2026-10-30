@@ -46,6 +46,32 @@ beforeEach(() => {
 });
 
 describe('renderCard', () => {
+  it('shows a Naver encyclopedia result with its original link and source', () => {
+    renderCard(
+      card,
+      '온보딩',
+      {
+        kind: 'result',
+        result: {
+          status: 'found',
+          source: 'naver',
+          title: '온보딩',
+          extract: '신입 직원이 조직에 적응하는 과정',
+          url: 'https://terms.naver.com/entry.naver?docId=123',
+          isDisambiguation: false,
+        },
+      },
+      handlers,
+    );
+
+    expect(part('extract')?.textContent).toBe('신입 직원이 조직에 적응하는 과정');
+    expect(part('source-link')?.textContent).toBe('네이버 백과에서 보기 →');
+    expect(part('source-link')?.getAttribute('href')).toBe(
+      'https://terms.naver.com/entry.naver?docId=123',
+    );
+    expect(part('attribution')?.textContent).toContain('네이버 백과');
+    expect(part('license-link')).toBeNull();
+  });
   it('shows loading text with the query and search buttons', () => {
     renderCard(card, '온보딩', { kind: 'loading' }, handlers);
 
@@ -136,7 +162,7 @@ describe('renderCard', () => {
   });
 
   it.each([
-    ['not_found', '위키백과에 문서가 없습니다'],
+    ['not_found', '네이버 백과와 위키백과에 결과가 없습니다'],
     ['rate_limited', '요청이 많아 잠시 막혔습니다. 잠시 후 다시 시도해 주세요'],
   ] as const)('shows the %s message with search buttons', (status, message) => {
     renderCard(card, '갓생', { kind: 'result', result: { status } }, handlers);

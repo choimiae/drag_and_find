@@ -41,6 +41,7 @@ export function isLookupResult(value: unknown): value is LookupResult {
         typeof value.extract === 'string' &&
         typeof value.url === 'string' &&
         typeof value.isDisambiguation === 'boolean' &&
+        (value.source === undefined || value.source === 'naver' || value.source === 'wikipedia') &&
         (value.disambiguation === undefined || isDisambiguationInfo(value.disambiguation)) &&
         (value.suggestion === undefined || isSenseCandidate(value.suggestion))
       );

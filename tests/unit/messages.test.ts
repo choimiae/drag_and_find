@@ -23,6 +23,18 @@ describe('isTriggerRequest', () => {
 });
 
 describe('isLookupResult', () => {
+  it('rejects an unknown found-result source', () => {
+    expect(
+      isLookupResult({
+        status: 'found',
+        title: 'x',
+        extract: 'x',
+        url: 'https://example.com',
+        isDisambiguation: false,
+        source: 'evil',
+      }),
+    ).toBe(false);
+  });
   it('accepts a complete found result', () => {
     expect(
       isLookupResult({

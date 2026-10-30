@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json.schemastore.org/wrangler.json",
+  "name": "drag-and-find-lookup",
+  "main": "index.ts",
+  "compatibility_date": "2026-10-30",
+  "secrets": { "required": ["NAVER_CLIENT_ID", "NAVER_CLIENT_SECRET"] },
+  "ratelimits": [
+    {
+      "name": "RATE_LIMITER",
+      "namespace_id": "1001",
+      "simple": { "limit": 30, "period": 60 },
+    },
+  ],
+}

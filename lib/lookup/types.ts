@@ -22,6 +22,7 @@ export interface DisambiguationInfo {
 export type LookupResult =
   | {
       status: 'found';
+      source?: 'naver' | 'wikipedia';
       title: string;
       extract: string;
       url: string;

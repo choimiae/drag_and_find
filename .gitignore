@@ -16,3 +16,11 @@ node_modules/
 .wxt/
 playwright-report/
 test-results/
+
+# Cloudflare Worker 로컬 인증 정보
+worker/.dev.vars*
+worker/.env*
+
+# 확장 빌드 환경 (E2E 설정만 버전 관리)
+.env*
+!.env.e2e

@@ -76,7 +76,7 @@ describe('createOverlay', () => {
     expect(cards).toHaveLength(1);
     expect(inShadow('card')?.style.top).toBe('128px');
     expect(inShadow('card')?.style.left).toBe('50px');
-    expect(inShadow('body')?.textContent).toBe('위키백과에 문서가 없습니다');
+    expect(inShadow('body')?.textContent).toBe('네이버 백과와 위키백과에 결과가 없습니다');
   });
 
   it('keeps the card at the same document position when the page scrolls before it is shown', () => {

@@ -17,6 +17,13 @@ function fakeProvider(result: LookupResult) {
 }
 
 describe('createLookupService', () => {
+  it('calls the server again for the same word when no cache is configured', async () => {
+    const provider = fakeProvider(FOUND);
+    const lookup = createLookupService(provider);
+    await lookup('SaaS');
+    await lookup('SaaS');
+    expect(provider.lookup).toHaveBeenCalledTimes(2);
+  });
   it('asks the provider once and then serves from cache', async () => {
     const provider = fakeProvider(FOUND);
     const lookup = createLookupService(provider, createLookupCache(memoryArea()));
