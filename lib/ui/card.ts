@@ -107,12 +107,14 @@ function foundContent(
     return [
       message(doc, '뜻이 여러 개인 단어입니다'),
       sourceLink(doc, result),
+      ...alternativeLinks(doc, result),
       attribution(doc, result),
     ];
   }
   return [
     ...disambiguationContent(doc, result.disambiguation, result.suggestion, onSelect),
     sourceLink(doc, result),
+    ...alternativeLinks(doc, result),
     attribution(doc, result),
   ];
 }
