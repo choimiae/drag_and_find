@@ -1,4 +1,3 @@
-
 import { stripTags } from '../lib/lookup/html-text';
 import type { FetchFn } from '../lib/lookup/wikipedia';
 import type { LookupProvider, LookupResult } from '../lib/lookup/types';
@@ -26,8 +25,8 @@ interface NaverResponse {
  * 검색어와 제목이 일치하지 않으면 결과를 사용하지 않는다.
  */
 export function createNaverProvider(
-    credentials: Credentials,
-    fetchFn: FetchFn = fetch,
+  credentials: Credentials,
+  fetchFn: FetchFn = fetch,
 ): LookupProvider {
   return {
     async lookup(query): Promise<LookupResult> {
@@ -62,14 +61,14 @@ export function createNaverProvider(
         const data = (await response.json()) as NaverResponse;
 
         const item = Array.isArray(data.items)
-            ? (data.items[0] as NaverItem | undefined)
-            : undefined;
+          ? (data.items[0] as NaverItem | undefined)
+          : undefined;
 
         if (
-            !item ||
-            typeof item.title !== 'string' ||
-            typeof item.description !== 'string' ||
-            typeof item.link !== 'string'
+          !item ||
+          typeof item.title !== 'string' ||
+          typeof item.description !== 'string' ||
+          typeof item.link !== 'string'
         ) {
           return { status: 'not_found' };
         }
@@ -106,10 +105,7 @@ export function createNaverProvider(
  * 공백, 대소문자, 유니코드 표기 차이를 정규화한다.
  */
 function normalizeTitle(value: string): string {
-  return value
-      .normalize('NFKC')
-      .replace(/\s+/gu, '')
-      .toLowerCase();
+  return value.normalize('NFKC').replace(/\s+/gu, '').toLowerCase();
 }
 
 function safeUrl(raw: string): string | null {
