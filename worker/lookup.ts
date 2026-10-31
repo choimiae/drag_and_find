@@ -16,8 +16,10 @@ export async function lookupSources(
 
   if (first.status === 'found' && second.status === 'found') {
     // 위키백과의 뜻 모음을 브라우저의 기존 의미 구분 UI에 전달한다.
-    if (second.isDisambiguation && second.disambiguation?.meanings.length) {
-      return { ...second, alternatives: [asSource(first)] };
+    if (second.isDisambiguation) {
+      return second.disambiguation?.meanings.length
+        ? { ...second, alternatives: [asSource(first)] }
+        : first;
     }
     return { ...first, alternatives: [asSource(second)] };
   }
