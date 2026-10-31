@@ -1,9 +1,8 @@
-import type { LookupProvider, LookupResult } from '../lib/lookup/types';
+import type { FoundResult, LookupProvider, LookupResult, LookupSourceResult } from '../lib/lookup/types';
 
 /**
- * 두 출처를 동시에 조회해 대기 시간을 줄인다.
- * 위키백과에 실제 뜻 목록이 있을 때만 동음이의 문서를 우선한다.
- * 문맥에 따른 뜻 선택은 주변 문장을 서버로 보내지 않고 확장 프로그램에서 수행한다.
+ * Worker는 검색어만 받아 두 출처의 결과를 제공한다.
+ * 주변 문맥을 알지 못하므로 의미를 선택하거나 네이버 검색 결과를 재정렬하지 않는다.
  */
 export async function lookupSources(
   query: string,
@@ -15,20 +14,29 @@ export async function lookupSources(
     safelyLookup(wikipedia, query),
   ]);
 
-  if (first.status === 'found') {
-    if (
-      second.status === 'found' &&
-      second.isDisambiguation &&
-      second.disambiguation?.meanings.length
-    ) {
-      return second;
+  if (first.status === 'found' && second.status === 'found') {
+    // 위키백과의 뜻 모음을 브라우저의 기존 의미 구분 UI에 전달한다.
+    if (second.isDisambiguation && second.disambiguation?.meanings.length) {
+      return { ...second, alternatives: [asSource(first)] };
     }
-
-    return first;
+    return { ...first, alternatives: [asSource(second)] };
   }
-
+  if (first.status === 'found') return first;
+  if (second.status === 'found') return second;
   if (second.status === 'not_found' && first.status !== 'not_found') return first;
   return second;
+}
+
+function asSource(result: FoundResult): LookupSourceResult {
+  const { source, title, extract, url, isDisambiguation, disambiguation } = result;
+  return {
+    source: source ?? 'wikipedia',
+    title,
+    extract,
+    url,
+    isDisambiguation,
+    ...(disambiguation ? { disambiguation } : {}),
+  };
 }
 
 async function safelyLookup(provider: LookupProvider, query: string): Promise<LookupResult> {
