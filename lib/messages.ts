@@ -1,4 +1,4 @@
-import type { DisambiguationInfo, LookupResult, Meaning, SenseCandidate } from './lookup/types';
+import type { DisambiguationInfo, LookupResult, LookupSourceResult, Meaning, SenseCandidate } from './lookup/types';
 
 export const LOOKUP_MESSAGE = 'lookup';
 export const TRIGGER_MESSAGE = 'trigger-from-shortcut';
@@ -43,7 +43,9 @@ export function isLookupResult(value: unknown): value is LookupResult {
         typeof value.isDisambiguation === 'boolean' &&
         (value.source === undefined || value.source === 'naver' || value.source === 'wikipedia') &&
         (value.disambiguation === undefined || isDisambiguationInfo(value.disambiguation)) &&
-        (value.suggestion === undefined || isSenseCandidate(value.suggestion))
+        (value.suggestion === undefined || isSenseCandidate(value.suggestion)) &&
+        (value.alternatives === undefined ||
+          (Array.isArray(value.alternatives) && value.alternatives.every(isLookupSourceResult)))
       );
     case 'not_found':
     case 'rate_limited':
@@ -52,6 +54,18 @@ export function isLookupResult(value: unknown): value is LookupResult {
     default:
       return false;
   }
+}
+
+function isLookupSourceResult(value: unknown): value is LookupSourceResult {
+  return (
+    isRecord(value) &&
+    (value.source === 'naver' || value.source === 'wikipedia') &&
+    typeof value.title === 'string' &&
+    typeof value.extract === 'string' &&
+    typeof value.url === 'string' &&
+    typeof value.isDisambiguation === 'boolean' &&
+    (value.disambiguation === undefined || isDisambiguationInfo(value.disambiguation))
+  );
 }
 
 function isSenseCandidate(value: unknown): value is SenseCandidate {
