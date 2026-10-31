@@ -99,6 +99,7 @@ function foundContent(
     return [
       element(doc, 'p', { className: 'card-extract', role: 'extract', text: result.extract }),
       sourceLink(doc, result),
+      ...alternativeLinks(doc, result),
       attribution(doc, result),
     ];
   }
@@ -311,6 +312,23 @@ function actionLink(doc: Document, name: string, role: string): HTMLElement {
 
 function message(doc: Document, text: string): HTMLElement {
   return element(doc, 'p', { className: 'card-message', text });
+}
+
+function alternativeLinks(doc: Document, result: FoundResult): HTMLElement[] {
+  return (result.alternatives ?? []).flatMap((alternative) => {
+    if (!alternative.url.startsWith('https://')) return [];
+    return [
+      externalLink(
+        doc,
+        alternative.url,
+        alternative.source === 'naver'
+          ? '다른 출처: 네이버 백과에서 보기 →'
+          : '다른 출처: 위키백과에서 보기 →',
+        'alternative-link',
+        'card-link',
+      ),
+    ];
+  });
 }
 
 function sourceLink(doc: Document, result: FoundResult): HTMLElement {
