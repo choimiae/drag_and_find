@@ -173,3 +173,62 @@ describe('suggestions', () => {
     expect(provider.lookup).toHaveBeenCalledTimes(2);
   });
 });
+
+
+describe('cross-source context selection', () => {
+  const ragWikipedia: LookupResult = {
+    status: 'found',
+    source: 'wikipedia',
+    title: 'RAG',
+    extract: '여러 뜻',
+    url: 'https://ko.wikipedia.org/wiki/RAG',
+    isDisambiguation: true,
+    disambiguation: {
+      basic: [],
+      meanings: [{ label: '검색증강생성', title: '검색증강생성' }],
+      candidates: [{
+        title: '검색증강생성',
+        extract: '대규모 언어 모델에 검색 시스템을 이용해 답변 생성 시 관련 정보를 사용한다',
+        url: 'https://ko.wikipedia.org/wiki/검색증강생성',
+      }],
+    },
+    alternatives: [{
+      source: 'naver',
+      title: 'RAG',
+      extract: '독일 에너지 기업의 석탄 광산 산업 운영',
+      url: 'https://terms.naver.com/entry.naver?docId=1',
+      isDisambiguation: false,
+    }],
+  };
+
+  it('recommends a Wikipedia meaning for a matching AI context', async () => {
+    const result = await createLookupService(fakeProvider(ragWikipedia))(
+      'RAG',
+      '대규모 언어 모델의 검색 시스템을 이용해 답변을 생성하는 RAG 방식',
+    );
+    expect(result.status === 'found' && result.suggestion?.title).toBe('검색증강생성');
+    expect(result.status === 'found' && result.source).toBe('wikipedia');
+  });
+
+  it('shows the Naver explanation when the surrounding context supports it', async () => {
+    const result = await createLookupService(fakeProvider(ragWikipedia))(
+      'RAG',
+      '독일 에너지 기업 RAG는 석탄 광산 산업을 운영했다',
+    );
+    expect(result).toMatchObject({
+      status: 'found',
+      source: 'naver',
+      title: 'RAG',
+      isDisambiguation: false,
+    });
+  });
+
+  it('does not present a guessed meaning if context has no clues', async () => {
+    const result = await createLookupService(fakeProvider(ragWikipedia))(
+      'RAG',
+      'RAG에 대해 알아보자.',
+    );
+    expect(result.status === 'found' && result.suggestion).toBeUndefined();
+    expect(result.status === 'found' && result.isDisambiguation).toBe(true);
+  });
+});
