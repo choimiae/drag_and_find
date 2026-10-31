@@ -1,3 +1,4 @@
+
 name: CI
 
 on:
@@ -17,7 +18,11 @@ jobs:
         with:
           node-version: 22
           cache: pnpm
+
       - run: pnpm install --frozen-lockfile
+        env:
+          WXT_LOOKUP_API_URL: https://lookup.example.test
+
       - run: pnpm exec playwright install --with-deps chromium
       - run: pnpm format:check
       - run: pnpm lint
