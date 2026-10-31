@@ -41,11 +41,31 @@ const provider = (result: LookupResult): LookupProvider => ({ lookup: vi.fn(asyn
 
 describe('lookupSources', () => {
   it('keeps Naver when Wikipedia returns a regular article', async () => {
-    expect(await lookupSources('온보딩', provider(naver), provider(wiki))).toEqual(naver);
+    expect(await lookupSources('온보딩', provider(naver), provider(wiki))).toEqual({
+      ...naver,
+      alternatives: [{
+        source: 'wikipedia',
+        title: wiki.title,
+        extract: wiki.extract,
+        url: wiki.url,
+        isDisambiguation: false,
+      }],
+    });
   });
 
   it('uses a Wikipedia disambiguation result with actual meanings', async () => {
-    expect(await lookupSources('RAG', provider(naver), provider(ambiguity))).toEqual(ambiguity);
+    expect(await lookupSources('RAG', provider(naver), provider(ambiguity))).toEqual({
+      ...ambiguity,
+      alternatives: [
+        {
+          source: 'naver',
+          title: naver.title,
+          extract: naver.extract,
+          url: naver.url,
+          isDisambiguation: false,
+        },
+      ],
+    });
   });
 
   it('keeps Naver if Wikipedia could not load the meaning list', async () => {
