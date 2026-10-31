@@ -110,3 +110,33 @@ describe('isLookupResult with disambiguation', () => {
     expect(isLookupResult({ ...base, ...extra })).toBe(false);
   });
 });
+
+
+describe('isLookupResult with source alternatives', () => {
+  const found = {
+    status: 'found',
+    source: 'wikipedia',
+    title: 'RAG',
+    extract: '여러 뜻',
+    url: 'https://ko.wikipedia.org/wiki/RAG',
+    isDisambiguation: true,
+  };
+
+  it('accepts valid source alternatives', () => {
+    expect(isLookupResult({
+      ...found,
+      alternatives: [{
+        source: 'naver',
+        title: 'RAG',
+        extract: '독일 에너지 기업',
+        url: 'https://terms.naver.com/entry.naver?docId=1',
+        isDisambiguation: false,
+      }],
+    })).toBe(true);
+  });
+
+  it('rejects malformed source alternatives', () => {
+    expect(isLookupResult({ ...found, alternatives: [{ source: 'unknown' }] })).toBe(false);
+    expect(isLookupResult({ ...found, alternatives: 'invalid' })).toBe(false);
+  });
+});
