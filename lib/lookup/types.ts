@@ -18,6 +18,16 @@ export interface DisambiguationInfo {
   candidates: SenseCandidate[];
 }
 
+/** Worker가 반환하는 다른 출처의 설명. 주변 문맥은 포함하지 않는다. */
+export interface LookupSourceResult {
+  source: 'naver' | 'wikipedia';
+  title: string;
+  extract: string;
+  url: string;
+  isDisambiguation: boolean;
+  disambiguation?: DisambiguationInfo;
+}
+
 /** 검색 출처가 돌려주는 결과. 출처가 바뀌어도 이 형식은 유지한다. */
 export type LookupResult =
   | {
@@ -28,6 +38,8 @@ export type LookupResult =
       url: string;
       isDisambiguation: boolean;
       disambiguation?: DisambiguationInfo;
+      /** 문맥을 모르는 Worker는 후보를 함께 제공하고 브라우저가 선택한다. */
+      alternatives?: LookupSourceResult[];
       suggestion?: SenseCandidate;
     }
   | { status: 'not_found' }
