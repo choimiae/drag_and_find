@@ -24,3 +24,9 @@ worker/.env*
 # 확장 빌드 환경 (E2E 설정만 버전 관리)
 .env*
 !.env.e2e
+
+# Cloudflare Worker 임시 산출물
+worker/.wrangler/
+
+# macOS
+.DS_Store
