@@ -571,3 +571,22 @@ describe('design details', () => {
     });
   });
 });
+
+
+describe('source alternatives', () => {
+  it('shows a separate source link without mixing its description into the selected meaning', () => {
+    renderCard(card, 'RAG', disambiguation({
+      alternatives: [{
+        source: 'naver',
+        title: 'RAG',
+        extract: '독일 석탄 기업',
+        url: 'https://terms.naver.com/entry.naver?docId=1',
+        isDisambiguation: false,
+      }],
+    }), handlers);
+    const link = part('alternative-link');
+    expect(link?.textContent).toContain('네이버 백과');
+    expect(link?.getAttribute('href')).toBe('https://terms.naver.com/entry.naver?docId=1');
+    expect(part('body')?.textContent).not.toContain('독일 석탄 기업');
+  });
+});
