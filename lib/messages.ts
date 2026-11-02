@@ -1,4 +1,10 @@
-import type { DisambiguationInfo, LookupResult, Meaning, SenseCandidate } from './lookup/types';
+import type {
+  DisambiguationInfo,
+  LookupAlternative,
+  LookupResult,
+  Meaning,
+  SenseCandidate,
+} from './lookup/types';
 
 export const LOOKUP_MESSAGE = 'lookup';
 export const TRIGGER_MESSAGE = 'trigger-from-shortcut';
@@ -41,11 +47,18 @@ export function isLookupResult(value: unknown): value is LookupResult {
         typeof value.extract === 'string' &&
         typeof value.url === 'string' &&
         typeof value.isDisambiguation === 'boolean' &&
-        (value.source === undefined || value.source === 'naver' || value.source === 'wikipedia') &&
+        (value.source === undefined ||
+          value.source === 'naver' ||
+          value.source === 'wikipedia' ||
+          value.source === 'wikidata') &&
         (value.disambiguation === undefined || isDisambiguationInfo(value.disambiguation)) &&
-        (value.suggestion === undefined || isSenseCandidate(value.suggestion))
+        (value.suggestion === undefined || isSenseCandidate(value.suggestion)) &&
+        (value.suggestion === undefined || isSenseCandidate(value.suggestion)) &&
+        (value.alternatives === undefined ||
+          (Array.isArray(value.alternatives) && value.alternatives.every(isLookupAlternative)))
       );
     case 'not_found':
+      return value.related === undefined || isLookupAlternative(value.related);
     case 'rate_limited':
     case 'network_error':
       return true;
@@ -59,7 +72,22 @@ function isSenseCandidate(value: unknown): value is SenseCandidate {
     isRecord(value) &&
     typeof value.title === 'string' &&
     typeof value.extract === 'string' &&
-    typeof value.url === 'string'
+    typeof value.url === 'string' &&
+    (value.englishExtract === undefined || typeof value.englishExtract === 'string') &&
+    (value.aliases === undefined ||
+      (Array.isArray(value.aliases) && value.aliases.every((alias) => typeof alias === 'string')))
+  );
+}
+
+function isLookupAlternative(value: unknown): value is LookupAlternative {
+  return (
+    isRecord(value) &&
+    (value.source === 'naver' || value.source === 'wikipedia' || value.source === 'wikidata') &&
+    typeof value.title === 'string' &&
+    typeof value.extract === 'string' &&
+    typeof value.url === 'string' &&
+    typeof value.isDisambiguation === 'boolean' &&
+    (value.disambiguation === undefined || isDisambiguationInfo(value.disambiguation))
   );
 }
 
@@ -67,6 +95,7 @@ function isMeaning(value: unknown): value is Meaning {
   return (
     isRecord(value) &&
     typeof value.label === 'string' &&
+    (value.description === undefined || typeof value.description === 'string') &&
     (value.title === null || typeof value.title === 'string')
   );
 }

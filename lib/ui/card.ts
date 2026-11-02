@@ -12,9 +12,9 @@ import type { SearchEngine } from '../settings';
 export type CardState =
   { kind: 'loading' } | { kind: 'result'; result: LookupResult } | { kind: 'too_long' };
 
-const MAX_MEANINGS = 8;
 const MAX_LABEL_LENGTH = 40;
 const LICENSE_URL = 'https://creativecommons.org/licenses/by-sa/4.0/deed.ko';
+const CC0_URL = 'https://creativecommons.org/publicdomain/zero/1.0/deed.ko';
 
 export interface CardHandlers {
   onClose(): void;
@@ -41,16 +41,24 @@ export function renderCard(
   const header = buildHeader(doc, titleFor(query, state), isAmbiguous(state), handlers.onClose);
   const body = element(doc, 'div', { className: 'card-body', role: 'body' });
   body.append(...bodyContent(doc, state, handlers));
+  const sourceResult =
+    state.kind === 'result' && state.result.status === 'found' && state.result.isDisambiguation
+      ? state.result
+      : null;
+  const pinnedSource = sourceResult ? element(doc, 'div', { className: 'card-source' }) : null;
+  if (pinnedSource && sourceResult) {
+    pinnedSource.append(sourceLink(doc, sourceResult), attribution(doc, sourceResult));
+  }
   const keptFooter = state.kind === 'too_long' ? undefined : sameQueryFooter(card, query);
   if (keptFooter) {
     // 입력칸을 문서에 둔 채로 위아래만 바꿔야 한글 조합·실행 취소 기록·포커스가 끊기지 않는다.
     for (const child of Array.from(card.children)) if (child !== keptFooter) child.remove();
-    keptFooter.before(header, body);
+    keptFooter.before(header, body, ...(pinnedSource ? [pinnedSource] : []));
     return;
   }
   const actions =
     state.kind === 'too_long' ? [] : [buildActions(doc, query, handlers.getSearchEngine)];
-  card.replaceChildren(header, body, ...actions);
+  card.replaceChildren(header, body, ...(pinnedSource ? [pinnedSource] : []), ...actions);
 }
 
 /** 같은 검색어로 다시 그릴 때만, 사용자가 고친 값이 든 검색 줄을 그대로 돌려준다. */
@@ -81,8 +89,29 @@ function bodyContent(doc: Document, state: CardState, handlers: CardHandlers): N
   switch (result.status) {
     case 'found':
       return foundContent(doc, result, handlers.onSelectMeaning);
-    case 'not_found':
-      return [doc.createTextNode('네이버 백과와 위키백과에 결과가 없습니다')];
+    case 'not_found': {
+      if (!result.related) {
+        return [doc.createTextNode('네이버 백과와 위키백과에 결과가 없습니다')];
+      }
+
+      const related = result.related;
+
+      return [
+        message(doc, '정확히 일치하는 설명은 찾지 못했습니다.'),
+        sectionTitle(doc, `관련 문서: ${related.title}`),
+        element(doc, 'p', {
+          className: 'card-extract',
+          role: 'related-extract',
+          text: related.extract,
+        }),
+        externalLink(doc, related.url, '네이버 백과에서 보기 →', 'related-link', 'card-link'),
+        element(doc, 'p', {
+          className: 'card-attribution',
+          role: 'attribution',
+          text: '출처: 네이버 백과 검색 결과',
+        }),
+      ];
+    }
     case 'rate_limited':
       return [doc.createTextNode('요청이 많아 잠시 막혔습니다. 잠시 후 다시 시도해 주세요')];
     case 'network_error':
@@ -99,21 +128,14 @@ function foundContent(
     return [
       element(doc, 'p', { className: 'card-extract', role: 'extract', text: result.extract }),
       sourceLink(doc, result),
+      ...alternativeLinks(doc, result),
       attribution(doc, result),
     ];
   }
   if (!result.disambiguation) {
-    return [
-      message(doc, '뜻이 여러 개인 단어입니다'),
-      sourceLink(doc, result),
-      attribution(doc, result),
-    ];
+    return [message(doc, '뜻이 여러 개인 단어입니다')];
   }
-  return [
-    ...disambiguationContent(doc, result.disambiguation, result.suggestion, onSelect),
-    sourceLink(doc, result),
-    attribution(doc, result),
-  ];
+  return disambiguationContent(doc, result.disambiguation, result.suggestion, onSelect);
 }
 
 function disambiguationContent(
@@ -122,14 +144,21 @@ function disambiguationContent(
   suggestion: SenseCandidate | undefined,
   onSelect: (title: string) => void,
 ): Node[] {
+  const suggestedSourceUrl = suggestion
+    ? info.meanings.find(
+        (meaning) => meaning.title === null && meaning.sourceUrl === suggestion.url,
+      )?.sourceUrl
+    : undefined;
   const others = info.meanings.filter(
-    (meaning) => meaning.title === null || meaning.title !== suggestion?.title,
+    (meaning) =>
+      (!suggestedSourceUrl || meaning.sourceUrl !== suggestedSourceUrl) &&
+      (meaning.title === null || meaning.title !== suggestion?.title),
   );
   const basic = info.basic.map((line) =>
     element(doc, 'p', { className: 'card-basic', role: 'basic', text: line }),
   );
   return [
-    ...(suggestion ? suggestionBlock(doc, suggestion, onSelect) : []),
+    ...(suggestion ? suggestionBlock(doc, suggestion, onSelect, suggestedSourceUrl) : []),
     ...(basic.length > 0 ? [sectionTitle(doc, '기본 뜻'), ...basic] : []),
     ...(others.length > 0
       ? [sectionTitle(doc, '다른 뜻'), ...meaningList(doc, others, onSelect)]
@@ -141,11 +170,17 @@ function suggestionBlock(
   doc: Document,
   suggestion: SenseCandidate,
   onSelect: (title: string) => void,
+  sourceUrl?: string,
 ): Node[] {
   const box = element(doc, 'div', { className: 'card-suggestion', role: 'suggestion-box' });
+  const safeUrl = safeMeaningSourceUrl(sourceUrl);
+  const action = safeUrl
+    ? externalLink(doc, safeUrl, shorten(suggestion.title), 'suggestion', 'card-meaning')
+    : meaningButton(doc, suggestion.title, suggestion.title, 'suggestion', onSelect);
+  if (safeUrl) action.setAttribute('aria-label', `${suggestion.title} 원문 보기`);
   box.append(
     element(doc, 'p', { className: 'card-chip', text: '이 글에서는 아마' }),
-    meaningButton(doc, suggestion.title, suggestion.title, 'suggestion', onSelect),
+    action,
     element(doc, 'p', {
       className: 'card-suggestion-extract',
       role: 'suggestion-extract',
@@ -161,20 +196,8 @@ function meaningList(
   onSelect: (title: string) => void,
 ): Node[] {
   const list = element(doc, 'ul', { className: 'card-meanings', role: 'meanings' });
-  list.append(
-    ...meanings.slice(0, MAX_MEANINGS).map((meaning) => meaningItem(doc, meaning, onSelect)),
-  );
-  const hidden = meanings.length - MAX_MEANINGS;
-  return hidden > 0
-    ? [
-        list,
-        element(doc, 'p', {
-          className: 'card-more',
-          role: 'more-meanings',
-          text: `외 ${hidden}개`,
-        }),
-      ]
-    : [list];
+  list.append(...meanings.map((meaning) => meaningItem(doc, meaning, onSelect)));
+  return [list];
 }
 
 function meaningItem(
@@ -183,16 +206,56 @@ function meaningItem(
   onSelect: (title: string) => void,
 ): HTMLElement {
   const item = element(doc, 'li', {});
-  item.append(
+  const row =
     meaning.title === null
-      ? element(doc, 'span', {
-          className: 'card-meaning-text',
-          role: 'meaning-text',
-          text: shorten(meaning.label),
-        })
-      : meaningButton(doc, meaning.label, meaning.title, 'meaning', onSelect),
+      ? element(doc, 'div', { className: 'card-meaning-text', role: 'meaning-text' })
+      : element(doc, 'button', { className: 'card-meaning', role: 'meaning' });
+  if (meaning.title !== null) {
+    row.setAttribute('type', 'button');
+    row.addEventListener('click', () => onSelect(meaning.title!));
+  }
+  row.append(
+    element(doc, 'span', { className: 'card-meaning-label', text: shorten(meaning.label) }),
+    element(doc, 'span', {
+      className: 'card-meaning-description',
+      role: 'meaning-description',
+      text: meaning.description || '간단한 설명이 없습니다.',
+    }),
   );
+  const sourceUrl = meaning.title === null ? safeMeaningSourceUrl(meaning.sourceUrl) : null;
+  if (sourceUrl) {
+    const link = externalLink(
+      doc,
+      sourceUrl,
+      '원문 보기 →',
+      'meaning-source-link',
+      'card-meaning-source-link',
+    );
+    link.setAttribute(
+      'aria-label',
+      `${meaning.label}: ${meaning.description || '설명 없음'} 원문 보기`,
+    );
+    row.append(link);
+  }
+  item.append(row);
   return item;
+}
+
+function safeMeaningSourceUrl(raw: string | undefined): string | null {
+  if (!raw) return null;
+  try {
+    const url = new URL(raw);
+    if (url.protocol !== 'https:' || url.username || url.password) return null;
+    if (url.hostname === 'www.wikidata.org' && /^\/wiki\/Q[1-9]\d*$/u.test(url.pathname)) {
+      return url.href;
+    }
+    if (url.hostname === 'ko.wikipedia.org' && url.pathname.startsWith('/wiki/')) {
+      return url.href;
+    }
+  } catch {
+    return null;
+  }
+  return null;
 }
 
 function meaningButton(
@@ -313,13 +376,28 @@ function message(doc: Document, text: string): HTMLElement {
   return element(doc, 'p', { className: 'card-message', text });
 }
 
+function alternativeLinks(doc: Document, result: FoundResult): HTMLElement[] {
+  return (result.alternatives ?? []).flatMap((alternative) => {
+    if (!alternative.url.startsWith('https://')) return [];
+    return [
+      externalLink(
+        doc,
+        alternative.url,
+        `다른 출처: ${sourceName(alternative.source)}에서 보기 →`,
+        'alternative-link',
+        'card-link',
+      ),
+    ];
+  });
+}
+
 function sourceLink(doc: Document, result: FoundResult): HTMLElement {
-  const naver = result.source === 'naver';
+  const wikipedia = result.source === undefined || result.source === 'wikipedia';
   return externalLink(
     doc,
     result.url,
-    naver ? '네이버 백과에서 보기 →' : '위키백과에서 보기 →',
-    naver ? 'source-link' : 'wiki-link',
+    `${sourceName(result.source)}에서 보기 →`,
+    wikipedia ? 'wiki-link' : 'source-link',
     'card-link',
   );
 }
@@ -331,12 +409,30 @@ function attribution(doc: Document, result: FoundResult): HTMLElement {
     line.textContent = '출처: 네이버 백과 검색 결과';
     return line;
   }
+  if (result.source === 'wikidata') {
+    line.append(
+      doc.createTextNode('출처: 위키데이터 ('),
+      externalLink(doc, CC0_URL, 'CC0', 'license-link', 'card-license'),
+      doc.createTextNode(')'),
+    );
+    return line;
+  }
   line.append(
-    doc.createTextNode('출처: 위키백과 ('),
+    doc.createTextNode(
+      result.isDisambiguation && !result.disambiguation
+        ? '출처: 위키백과 ('
+        : '출처: 위키백과 설명 일부 (',
+    ),
     externalLink(doc, LICENSE_URL, 'CC BY-SA 4.0', 'license-link', 'card-license'),
     doc.createTextNode(')'),
   );
   return line;
+}
+
+function sourceName(source: FoundResult['source']): string {
+  if (source === 'naver') return '네이버 백과';
+  if (source === 'wikidata') return '위키데이터';
+  return '위키백과';
 }
 
 function retryButton(doc: Document, onRetry: () => void): HTMLElement {

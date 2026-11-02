@@ -173,3 +173,129 @@ describe('suggestions', () => {
     expect(provider.lookup).toHaveBeenCalledTimes(2);
   });
 });
+
+describe('cross-source context selection', () => {
+  const ragWikipedia: LookupResult = {
+    status: 'found',
+    source: 'wikipedia',
+    title: 'RAG',
+    extract: '여러 뜻',
+    url: 'https://ko.wikipedia.org/wiki/RAG',
+    isDisambiguation: true,
+    disambiguation: {
+      basic: [],
+      meanings: [{ label: '검색증강생성', title: '검색증강생성' }],
+      candidates: [
+        {
+          title: '검색증강생성',
+          extract: '대규모 언어 모델에 검색 시스템을 이용해 답변 생성 시 관련 정보를 사용한다',
+          url: 'https://ko.wikipedia.org/wiki/검색증강생성',
+        },
+      ],
+    },
+    alternatives: [
+      {
+        source: 'naver',
+        title: 'RAG',
+        extract: '독일 에너지 기업의 석탄 광산 산업 운영',
+        url: 'https://terms.naver.com/entry.naver?docId=1',
+        isDisambiguation: false,
+      },
+    ],
+  };
+
+  it('recommends a Wikipedia meaning for a matching AI context', async () => {
+    const result = await createLookupService(fakeProvider(ragWikipedia))(
+      'RAG',
+      '대규모 언어 모델의 검색 시스템을 이용해 답변을 생성하는 RAG 방식',
+    );
+    expect(result.status === 'found' && result.suggestion?.title).toBe('검색증강생성');
+    expect(result.status === 'found' && result.source).toBe('wikipedia');
+  });
+
+  it('shows the Naver explanation when the surrounding context supports it', async () => {
+    const result = await createLookupService(fakeProvider(ragWikipedia))(
+      'RAG',
+      '독일 에너지 기업 RAG는 석탄 광산 산업을 운영했다',
+    );
+    expect(result).toMatchObject({
+      status: 'found',
+      source: 'naver',
+      title: 'RAG',
+      isDisambiguation: false,
+    });
+  });
+
+  it('does not present a guessed meaning if context has no clues', async () => {
+    const result = await createLookupService(fakeProvider(ragWikipedia))(
+      'RAG',
+      'RAG에 대해 알아보자.',
+    );
+    expect(result.status === 'found' && result.suggestion).toBeUndefined();
+    expect(result.status === 'found' && result.isDisambiguation).toBe(true);
+  });
+});
+
+describe('on-demand English context', () => {
+  const management: LookupResult = {
+    status: 'found',
+    source: 'wikipedia',
+    title: '매니지먼트',
+    extract: '여러 뜻',
+    url: 'https://ko.wikipedia.org/wiki/매니지먼트',
+    isDisambiguation: true,
+    disambiguation: {
+      basic: [],
+      meanings: [
+        { label: '관리', title: '관리' },
+        { label: '경영', title: '경영' },
+      ],
+      candidates: [
+        {
+          title: '관리',
+          extract: '어떤 것을 돌보는 일',
+          url: 'https://ko.wikipedia.org/wiki/관리',
+        },
+        { title: '경영', extract: '기업을 운영하는 일', url: 'https://ko.wikipedia.org/wiki/경영' },
+      ],
+    },
+  };
+
+  it('does not request English extracts when Korean context directly names a sense', async () => {
+    const loadEnglish = vi.fn(async () => ({ 관리: 'Application resource management' }));
+    const lookup = createLookupService(fakeProvider(management), undefined, loadEnglish);
+    const result = await lookup('Management', 'Application Management 정보를 확인하고 관리합니다.');
+    expect(result.status === 'found' && result.suggestion?.title).toBe('관리');
+    expect(loadEnglish).not.toHaveBeenCalled();
+  });
+
+  it('does not request English extracts when the context contains only the selected word', async () => {
+    const loadEnglish = vi.fn(async () => ({ 관리: 'Application management' }));
+    const lookup = createLookupService(fakeProvider(management), undefined, loadEnglish);
+    const result = await lookup('Management', 'Management');
+    expect(result.status).toBe('found');
+    expect(loadEnglish).not.toHaveBeenCalled();
+  });
+
+  it('requests article titles only when English context needs more evidence', async () => {
+    const loadEnglish = vi.fn(async () => ({
+      관리: 'Application resources and software system management',
+      경영: 'Business leadership and corporate strategy',
+    }));
+    const lookup = createLookupService(fakeProvider(management), undefined, loadEnglish);
+    const context =
+      'Application resources and software systems need Management of application resources.';
+    const result = await lookup('Management', context);
+    expect(loadEnglish).toHaveBeenCalledWith(['관리', '경영']);
+    expect(result.status === 'found' && result.suggestion?.title).toBe('관리');
+  });
+
+  it('keeps the basic result if English context lookup fails', async () => {
+    const lookup = createLookupService(fakeProvider(management), undefined, async () => {
+      throw new Error('Wikipedia unavailable');
+    });
+    const result = await lookup('Management', 'Application resources need Management of systems.');
+    expect(result.status).toBe('found');
+    expect(result.status === 'found' && result.suggestion).toBeUndefined();
+  });
+});

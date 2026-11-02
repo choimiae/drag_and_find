@@ -89,7 +89,7 @@ describe('createNaverProvider', () => {
   });
 
   // 추가: 검색어와 다른 제목의 결과를 제외하는지 검증
-  it('검색어와 무관한 제목은 결과로 사용하지 않는다', async () => {
+  it('검색어와 제목이 다르면 관련 문서로 반환한다', async () => {
     const fetchFn = vi.fn(async () =>
       Response.json({
         items: [
@@ -104,6 +104,15 @@ describe('createNaverProvider', () => {
 
     const result = await createNaverProvider(credentials, fetchFn).lookup('사용량');
 
-    expect(result).toEqual({ status: 'not_found' });
+    expect(result).toEqual({
+      status: 'not_found',
+      related: {
+        source: 'naver',
+        title: '물사용량',
+        extract: '세탁 과정에서 사용되는 물의 양',
+        url: 'https://terms.naver.com/entry.naver?docId=1',
+        isDisambiguation: false,
+      },
+    });
   });
 });

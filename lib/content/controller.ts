@@ -72,6 +72,7 @@ export function createController(deps: ControllerDeps): Controller {
     const requestId = latestRequestId;
     overlay.hideIcon();
     showCard(anchor, query, { kind: 'loading' }, context);
+
     const result = await deps.requestLookup(query, context);
     if (requestId !== latestRequestId) return;
     showCard(anchor, query, { kind: 'result', result }, context);

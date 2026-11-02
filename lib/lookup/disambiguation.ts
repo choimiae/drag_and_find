@@ -9,6 +9,12 @@ function labelOf(line: string): string {
   return colon > 0 ? line.slice(0, colon).trim() : line;
 }
 
+function descriptionOf(line: string): string | undefined {
+  const colon = line.indexOf(':');
+  const description = colon > 0 ? line.slice(colon + 1).trim() : '';
+  return description || undefined;
+}
+
 /** 뜻 모음 문서 HTML 해석에 쓰는 연결 문서 정보(`prop=links`의 한 항목). */
 export interface ParsedLink {
   ns: number;
@@ -52,11 +58,14 @@ function closeItem(state: ScanState, itemEnd: number): void {
   const text = stripTags(raw);
   if (!text) return;
   if (state.inBasic) state.basic.push(text);
-  else
+  else {
+    const description = descriptionOf(text);
     state.meanings.push({
       label: labelOf(text),
+      ...(description ? { description } : {}),
       title: firstArticleTarget(raw, state.linkByTitle),
     });
+  }
 }
 
 /** 제목이 끝났을 때 호출한다. 끝 구역 제목이면 true(훑기 중단). */

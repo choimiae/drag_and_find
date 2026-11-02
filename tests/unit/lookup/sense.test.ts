@@ -111,4 +111,125 @@ describe('pickSense rules', () => {
 
     expect(pickSense('abcd abcd abcd', ['트리거', 'abcd'], [echo, gun])).toBeNull();
   });
+
+  describe('English context recommendations', () => {
+    const candidates: SenseCandidate[] = [
+      {
+        title: '경영',
+        extract: '조직에 관한 의사결정을 행하는 행동',
+        url: 'https://ko.wikipedia.org/wiki/경영',
+        englishExtract: 'Management involves business organizations, leadership and strategy.',
+      },
+      {
+        title: '관리',
+        extract: '시설이나 물건의 유지와 개량',
+        url: 'https://ko.wikipedia.org/wiki/관리',
+        englishExtract: 'Administration of facilities and maintenance operations.',
+      },
+    ];
+
+    it('recommends 경영 in a business context', () => {
+      const context =
+        "The company's Management strategy focuses on business growth and organizational leadership.";
+
+      expect(pickSense(context, ['Management', '매니지먼트'], candidates)?.title).toBe('경영');
+    });
+
+    it('abstains when an English context has insufficient evidence', () => {
+      const context =
+        'Memory Management is responsible for allocating and releasing system resources.';
+
+      expect(pickSense(context, ['Management', '매니지먼트'], candidates)).toBeNull();
+    });
+
+    it('does not recommend a meaning from the search word alone', () => {
+      expect(pickSense('Management Management', ['Management'], candidates)).toBeNull();
+    });
+  });
+});
+
+describe('Korean meaning mentioned in context', () => {
+  const candidates: SenseCandidate[] = [
+    {
+      title: '경영',
+      extract: '조직에 관한 의사결정을 행하는 행동',
+      url: 'https://ko.wikipedia.org/wiki/경영',
+    },
+    {
+      title: '관리',
+      extract: '시설이나 물건의 유지와 개량',
+      url: 'https://ko.wikipedia.org/wiki/관리',
+    },
+  ];
+
+  it('주변 설명에 관리가 직접 등장하면 관리를 추천한다', () => {
+    const context =
+      'Application Management 등록한 Application 정보를 확인하고 관리합니다. 네이버 서비스의 OPEN API를 제공합니다.';
+
+    const result = pickSense(context, ['Management', '매니지먼트'], candidates);
+
+    expect(result?.title).toBe('관리');
+  });
+
+  it('경영과 관리가 모두 등장하면 추천하지 않는다', () => {
+    const context = 'Management는 조직의 경영과 자원 관리를 포함한다.';
+
+    const result = pickSense(context, ['Management', '매니지먼트'], candidates);
+
+    expect(result).toBeNull();
+  });
+
+  it('한국어 검색어에는 영어 검색용 직접 언급 규칙을 적용하지 않는다', () => {
+    const candidates: SenseCandidate[] = [
+      {
+        title: '버스',
+        extract: '승객을 운송하는 자동차',
+        url: 'https://ko.wikipedia.org/wiki/버스',
+      },
+    ];
+
+    const result = pickSense('고속버스 터미널에 사람들이 모였다.', ['터미널'], candidates);
+
+    expect(result).toBeNull();
+  });
+
+  it('영어가 많은 문장에서도 한국어 검색어는 한국어 설명과 비교한다', () => {
+    const context =
+      '테이블에 행이 추가될 때 트리거를 걸었다. Application system network service documentation platform configuration';
+    const candidates: SenseCandidate[] = [
+      {
+        title: '데이터베이스 트리거',
+        extract: '테이블에 행이 추가되면 자동 실행',
+        url: 'https://ko.wikipedia.org/wiki/데이터베이스_트리거',
+      },
+      {
+        title: '방아쇠',
+        extract: '총의 격발 장치',
+        url: 'https://ko.wikipedia.org/wiki/방아쇠',
+      },
+    ];
+
+    expect(pickSense(context, ['트리거'], candidates)?.title).toBe('데이터베이스 트리거');
+  });
+});
+
+describe('English expansion mentioned in Korean context', () => {
+  it('uses an explicit expansion to distinguish SSOT from other meanings', () => {
+    const candidates: SenseCandidate[] = [
+      {
+        title: '단일 진실 공급원',
+        extract: '한 곳을 기준으로 정보를 관리하는 방식',
+        url: 'https://www.wikidata.org/wiki/Q1',
+        aliases: ['single source of truth'],
+      },
+      {
+        title: 'SSOT',
+        extract: '지구 관측 위성',
+        url: 'https://www.wikidata.org/wiki/Q2',
+      },
+    ];
+    const context = 'Next.js 모바일 웹을 SSOT(Single Source of Truth)로 삼아 모노레포를 세팅했다.';
+
+    expect(pickSense(context, ['SSOT'], candidates)?.title).toBe('단일 진실 공급원');
+  });
 });

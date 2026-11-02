@@ -23,6 +23,18 @@ describe('isTriggerRequest', () => {
 });
 
 describe('isLookupResult', () => {
+  it('accepts a Wikidata result with a Korean description', () => {
+    expect(
+      isLookupResult({
+        status: 'found',
+        source: 'wikidata',
+        title: '모노리포',
+        extract: '여러 프로젝트를 하나의 저장소에서 관리하는 방식',
+        url: 'https://www.wikidata.org/wiki/Q1',
+        isDisambiguation: false,
+      }),
+    ).toBe(true);
+  });
   it('rejects an unknown found-result source', () => {
     expect(
       isLookupResult({
@@ -108,5 +120,104 @@ describe('isLookupResult with disambiguation', () => {
     { suggestion: { title: 'a', extract: 'b' } },
   ])('rejects malformed %j', (extra) => {
     expect(isLookupResult({ ...base, ...extra })).toBe(false);
+  });
+});
+
+describe('isLookupResult with source alternatives', () => {
+  const found = {
+    status: 'found',
+    source: 'wikipedia',
+    title: 'RAG',
+    extract: '여러 뜻',
+    url: 'https://ko.wikipedia.org/wiki/RAG',
+    isDisambiguation: true,
+  };
+
+  it('accepts valid source alternatives', () => {
+    expect(
+      isLookupResult({
+        ...found,
+        alternatives: [
+          {
+            source: 'naver',
+            title: 'RAG',
+            extract: '독일 에너지 기업',
+            url: 'https://terms.naver.com/entry.naver?docId=1',
+            isDisambiguation: false,
+          },
+        ],
+      }),
+    ).toBe(true);
+  });
+
+  it('rejects malformed source alternatives', () => {
+    expect(isLookupResult({ ...found, alternatives: [{ source: 'unknown' }] })).toBe(false);
+    expect(isLookupResult({ ...found, alternatives: 'invalid' })).toBe(false);
+  });
+});
+
+describe('isLookupResult with alternatives', () => {
+  const found = {
+    status: 'found',
+    source: 'naver',
+    title: 'RAG',
+    extract: '네이버 백과 설명',
+    url: 'https://terms.naver.com/entry.naver?docId=1',
+    isDisambiguation: false,
+  };
+
+  it('다른 출처의 검색 결과를 허용한다', () => {
+    expect(
+      isLookupResult({
+        ...found,
+        alternatives: [
+          {
+            source: 'wikipedia',
+            title: 'RAG',
+            extract: '여러 뜻을 가진 단어',
+            url: 'https://ko.wikipedia.org/wiki/RAG',
+            isDisambiguation: true,
+            disambiguation: {
+              basic: [],
+              meanings: [
+                {
+                  label: '검색증강생성',
+                  title: '검색증강생성',
+                },
+              ],
+              candidates: [],
+            },
+          },
+        ],
+      }),
+    ).toBe(true);
+  });
+
+  it('다른 출처 정보가 없어도 기존 응답을 허용한다', () => {
+    expect(isLookupResult(found)).toBe(true);
+  });
+
+  it('잘못된 출처 정보는 거부한다', () => {
+    expect(
+      isLookupResult({
+        ...found,
+        alternatives: [
+          {
+            source: 'unknown',
+            title: 'RAG',
+            extract: '설명',
+            url: 'https://example.test',
+            isDisambiguation: false,
+          },
+        ],
+      }),
+    ).toBe(false);
+
+    expect(
+      isLookupResult({
+        ...found,
+        alternatives: 'invalid',
+      }),
+    ).toBe(false);
   });
 });

@@ -1,7 +1,9 @@
 /** 뜻 모음 문서의 한 항목. title이 있으면 눌러서 그 문서를 찾을 수 있다. */
 export interface Meaning {
   label: string;
+  description?: string;
   title: string | null;
+  sourceUrl?: string;
 }
 
 /** 자동 선택 후보이자 "이 글에서는 아마"에 보여 줄 뜻. */
@@ -9,6 +11,8 @@ export interface SenseCandidate {
   title: string;
   extract: string;
   url: string;
+  englishExtract?: string;
+  aliases?: string[];
 }
 
 /** 뜻 모음 문서에서 얻은 기본 뜻, 항목, 자동 선택 후보. */
@@ -18,19 +22,33 @@ export interface DisambiguationInfo {
   candidates: SenseCandidate[];
 }
 
+/** Worker가 함께 반환하는 다른 출처의 검색 결과. */
+export interface LookupAlternative {
+  source: 'naver' | 'wikipedia' | 'wikidata';
+  title: string;
+  extract: string;
+  url: string;
+  isDisambiguation: boolean;
+  disambiguation?: DisambiguationInfo;
+}
+
 /** 검색 출처가 돌려주는 결과. 출처가 바뀌어도 이 형식은 유지한다. */
 export type LookupResult =
   | {
       status: 'found';
-      source?: 'naver' | 'wikipedia';
+      source?: 'naver' | 'wikipedia' | 'wikidata';
       title: string;
       extract: string;
       url: string;
       isDisambiguation: boolean;
       disambiguation?: DisambiguationInfo;
+      alternatives?: LookupAlternative[];
       suggestion?: SenseCandidate;
     }
-  | { status: 'not_found' }
+  | {
+      status: 'not_found';
+      related?: LookupAlternative;
+    }
   | { status: 'rate_limited' }
   | { status: 'network_error' };
 

@@ -66,7 +66,10 @@ describe('createWikipediaKoProvider', () => {
     await provider(fetchFn).lookup('온보딩');
 
     const init = fetchFn.mock.calls[0]?.[1];
-    expect(init?.headers).toEqual({ 'Api-User-Agent': 'DragAndFind/test' });
+    expect(init?.headers).toEqual({
+      'User-Agent': 'DragAndFind/test',
+      'Api-User-Agent': 'DragAndFind/test',
+    });
     expect(init?.signal).toBeInstanceOf(AbortSignal);
   });
 
@@ -217,6 +220,38 @@ function disambiguationFetch(
 }
 
 describe('disambiguation pages', () => {
+  it('adds a short Korean explanation to a bare POC meaning label', async () => {
+    const fetchFn = fakeFetch((url) => {
+      if (isSummary(url)) return summary('POC', { type: 'disambiguation' });
+      if (url.searchParams.get('action') === 'parse')
+        return json({
+          parse: {
+            text: '<ul><li><a href="/wiki/개념_증명">개념 증명(Proof of concept)</a></li></ul>',
+            links: [{ ns: 0, title: '개념 증명', exists: true }],
+          },
+        });
+      return json({
+        query: {
+          pages: {
+            '1': {
+              title: '개념 증명',
+              extract:
+                '개념 증명은 아이디어의 실현 가능성을 확인하는 초기 구현이다. 추가 설명이다.',
+            },
+          },
+        },
+      });
+    });
+
+    const result = await provider(fetchFn).lookup('POC');
+
+    if (result.status !== 'found') throw new Error('no result');
+    expect(result.disambiguation?.meanings[0]).toMatchObject({
+      label: '개념 증명(Proof of concept)',
+      description: '개념 증명은 아이디어의 실현 가능성을 확인하는 초기 구현이다.',
+    });
+  });
+
   it('adds basic meanings, meanings and candidates with two extra requests', async () => {
     const fetchFn = disambiguationFetch('트리거');
 
@@ -232,7 +267,9 @@ describe('disambiguation pages', () => {
     expect(result).toMatchObject({ status: 'found', isDisambiguation: true });
     if (result.status !== 'found' || !result.disambiguation) throw new Error('no disambiguation');
     expect(result.disambiguation.basic).toHaveLength(2);
-    expect(result.disambiguation.meanings).toContainEqual({
+    expect(
+      result.disambiguation.meanings.find((meaning) => meaning.title === '데이터베이스 트리거'),
+    ).toMatchObject({
       label: '데이터베이스 트리거',
       title: '데이터베이스 트리거',
     });
@@ -280,6 +317,22 @@ describe('disambiguation pages', () => {
     expect(result.status === 'found' && result.disambiguation).toBeFalsy();
   });
 
+  it('keeps parsed meanings when linked article extracts fail', async () => {
+    const fetchFn = disambiguationFetch('트리거', {
+      linked: () => new Response('', { status: 503 }),
+    });
+
+    const result = await provider(fetchFn).lookup('트리거');
+
+    expect(result.status).toBe('found');
+    if (result.status !== 'found') return;
+    expect(result.disambiguation?.meanings).toContainEqual({
+      label: '데이터베이스 트리거',
+      title: '데이터베이스 트리거',
+    });
+    expect(result.disambiguation?.candidates).toEqual([]);
+  });
+
   it('keeps the plain disambiguation result when links is not an array', async () => {
     const fetchFn = disambiguationFetch('트리거', {
       parse: () => json({ parse: { text: '<ul></ul>', links: 'x' } }),
@@ -311,7 +364,7 @@ describe('disambiguation pages', () => {
     ]);
   });
 
-  it('keeps the plain disambiguation result when an extra request fails', async () => {
+  it('keeps parsed meanings when the linked article request is rate limited', async () => {
     const fetchFn = disambiguationFetch('트리거', {
       linked: () => new Response('', { status: 429 }),
     });
@@ -319,7 +372,9 @@ describe('disambiguation pages', () => {
     const result = await provider(fetchFn).lookup('트리거');
 
     expect(result).toMatchObject({ status: 'found', isDisambiguation: true });
-    expect(result.status === 'found' && result.disambiguation).toBeFalsy();
+    if (result.status !== 'found') return;
+    expect(result.disambiguation?.meanings.length).toBeGreaterThan(0);
+    expect(result.disambiguation?.candidates).toEqual([]);
   });
 
   it('excludes linked pages whose extract is not a string', async () => {

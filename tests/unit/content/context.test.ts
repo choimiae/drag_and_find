@@ -75,4 +75,43 @@ describe('contextAroundRange', () => {
 
     expect(contextAroundRange(selectRange('w'))).toBe('단어');
   });
+
+  it('제목 아래 설명을 문맥에 포함한다', () => {
+    document.body.innerHTML = `
+    <section>
+      <h2>Application <span id="word">Management</span></h2>
+      <p>등록한 Application 정보를 확인하고 관리합니다.</p>
+    </section>
+  `;
+
+    expect(contextAroundRange(selectRange('word'))).toBe(
+      'Application Management 등록한 Application 정보를 확인하고 관리합니다.',
+    );
+  });
+
+  it('제목이 별도 요소로 감싸져 있어도 설명을 가져온다', () => {
+    document.body.innerHTML = `
+    <section>
+      <div>
+        <h2>Application <span id="word">Management</span></h2>
+      </div>
+      <p>등록한 Application 정보를 확인하고 관리합니다.</p>
+    </section>
+  `;
+
+    expect(contextAroundRange(selectRange('word'))).toBe(
+      'Application Management 등록한 Application 정보를 확인하고 관리합니다.',
+    );
+  });
+
+  it('제목 옆의 메뉴는 문맥으로 가져오지 않는다', () => {
+    document.body.innerHTML = `
+    <section>
+      <h2>Application <span id="word">Management</span></h2>
+      <nav>사용자 관리 설정 로그아웃</nav>
+    </section>
+  `;
+
+    expect(contextAroundRange(selectRange('word'))).toBe('Application Management');
+  });
 });

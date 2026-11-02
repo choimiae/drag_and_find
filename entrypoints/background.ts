@@ -2,12 +2,13 @@ import { browser } from 'wxt/browser';
 import { defineBackground } from 'wxt/utils/define-background';
 import { createLookupMessageHandler } from '../lib/lookup/message-handler';
 import { createLookupService } from '../lib/lookup/service';
-import { createWorkerProvider } from '../lib/lookup/worker-client';
+import { createEnglishContextClient, createWorkerProvider } from '../lib/lookup/worker-client';
 import { createShortcutHandler } from '../lib/shortcut';
 
 export default defineBackground(() => {
-  const provider = createWorkerProvider(import.meta.env.WXT_LOOKUP_API_URL ?? '');
-  const lookup = createLookupService(provider);
+  const workerUrl = import.meta.env.WXT_LOOKUP_API_URL ?? '';
+  const provider = createWorkerProvider(workerUrl);
+  const lookup = createLookupService(provider, undefined, createEnglishContextClient(workerUrl));
   const handleLookup = createLookupMessageHandler(lookup);
 
   browser.runtime.onMessage.addListener((message, _sender, sendResponse) => {
