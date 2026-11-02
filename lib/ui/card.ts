@@ -144,14 +144,21 @@ function disambiguationContent(
   suggestion: SenseCandidate | undefined,
   onSelect: (title: string) => void,
 ): Node[] {
+  const suggestedSourceUrl = suggestion
+    ? info.meanings.find(
+        (meaning) => meaning.title === null && meaning.sourceUrl === suggestion.url,
+      )?.sourceUrl
+    : undefined;
   const others = info.meanings.filter(
-    (meaning) => meaning.title === null || meaning.title !== suggestion?.title,
+    (meaning) =>
+      (!suggestedSourceUrl || meaning.sourceUrl !== suggestedSourceUrl) &&
+      (meaning.title === null || meaning.title !== suggestion?.title),
   );
   const basic = info.basic.map((line) =>
     element(doc, 'p', { className: 'card-basic', role: 'basic', text: line }),
   );
   return [
-    ...(suggestion ? suggestionBlock(doc, suggestion, onSelect) : []),
+    ...(suggestion ? suggestionBlock(doc, suggestion, onSelect, suggestedSourceUrl) : []),
     ...(basic.length > 0 ? [sectionTitle(doc, '기본 뜻'), ...basic] : []),
     ...(others.length > 0
       ? [sectionTitle(doc, '다른 뜻'), ...meaningList(doc, others, onSelect)]
@@ -163,11 +170,17 @@ function suggestionBlock(
   doc: Document,
   suggestion: SenseCandidate,
   onSelect: (title: string) => void,
+  sourceUrl?: string,
 ): Node[] {
   const box = element(doc, 'div', { className: 'card-suggestion', role: 'suggestion-box' });
+  const safeUrl = safeMeaningSourceUrl(sourceUrl);
+  const action = safeUrl
+    ? externalLink(doc, safeUrl, shorten(suggestion.title), 'suggestion', 'card-meaning')
+    : meaningButton(doc, suggestion.title, suggestion.title, 'suggestion', onSelect);
+  if (safeUrl) action.setAttribute('aria-label', `${suggestion.title} 원문 보기`);
   box.append(
     element(doc, 'p', { className: 'card-chip', text: '이 글에서는 아마' }),
-    meaningButton(doc, suggestion.title, suggestion.title, 'suggestion', onSelect),
+    action,
     element(doc, 'p', {
       className: 'card-suggestion-extract',
       role: 'suggestion-extract',
@@ -209,8 +222,40 @@ function meaningItem(
       text: meaning.description || '간단한 설명이 없습니다.',
     }),
   );
+  const sourceUrl = meaning.title === null ? safeMeaningSourceUrl(meaning.sourceUrl) : null;
+  if (sourceUrl) {
+    const link = externalLink(
+      doc,
+      sourceUrl,
+      '원문 보기 →',
+      'meaning-source-link',
+      'card-meaning-source-link',
+    );
+    link.setAttribute(
+      'aria-label',
+      `${meaning.label}: ${meaning.description || '설명 없음'} 원문 보기`,
+    );
+    row.append(link);
+  }
   item.append(row);
   return item;
+}
+
+function safeMeaningSourceUrl(raw: string | undefined): string | null {
+  if (!raw) return null;
+  try {
+    const url = new URL(raw);
+    if (url.protocol !== 'https:' || url.username || url.password) return null;
+    if (url.hostname === 'www.wikidata.org' && /^\/wiki\/Q[1-9]\d*$/u.test(url.pathname)) {
+      return url.href;
+    }
+    if (url.hostname === 'ko.wikipedia.org' && url.pathname.startsWith('/wiki/')) {
+      return url.href;
+    }
+  } catch {
+    return null;
+  }
+  return null;
 }
 
 function meaningButton(

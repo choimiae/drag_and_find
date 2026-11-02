@@ -128,6 +128,21 @@ test('Task의 같은 이름을 가진 뜻들을 설명으로 구분해 보여 �
   ]);
 });
 
+test('이름이 같은 위키데이터 뜻은 각자의 원문을 연다', async ({ page, context }) => {
+  await openArticleAndLookUp(page, 'poc');
+
+  const links = role(page, 'meaning-source-link');
+  await expect(links).toHaveCount(2);
+  await expect(role(page, 'meaning-description')).toHaveText(['개념 증명', '다른 분야의 약어']);
+
+  const [first] = await Promise.all([context.waitForEvent('page'), links.nth(0).click()]);
+  await expect(first).toHaveURL('https://www.wikidata.org/wiki/Q101');
+
+  await page.bringToFront();
+  const [second] = await Promise.all([context.waitForEvent('page'), links.nth(1).click()]);
+  await expect(second).toHaveURL('https://www.wikidata.org/wiki/Q202');
+});
+
 test('긴 뜻 목록은 마지막 항목까지 스크롤하고 출처와 검색 줄은 보인다', async ({ page }) => {
   await openArticleAndLookUp(page, 'many');
 

@@ -172,6 +172,7 @@ export const OVERLAY_CSS = `
   text-align: left;
 }
 .card-suggestion .card-meaning:hover, .card-suggestion .card-meaning:focus-visible { color: var(--dnf-accent); }
+.card-suggestion a.card-meaning { text-decoration: none; }
 .card-suggestion-extract {
   margin: 0;
   color: var(--dnf-text-soft);
@@ -200,6 +201,8 @@ export const OVERLAY_CSS = `
 .card-meaning-label { display: block; font-weight: 700; }
 .card-meaning-description { display: block; margin-top: 2px; color: var(--dnf-text-soft); font-size: 12px; line-height: 1.45; }
 .card-meaning-text .card-meaning-description { color: var(--dnf-muted); }
+.card-meaning-source-link { display: inline-block; margin-top: 3px; color: var(--dnf-accent); font-size: 11px; text-decoration: none; }
+.card-meaning-source-link:hover, .card-meaning-source-link:focus-visible { text-decoration: underline; }
 .card-actions {
   display: flex;
   flex: none;

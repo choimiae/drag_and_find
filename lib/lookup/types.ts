@@ -3,6 +3,7 @@ export interface Meaning {
   label: string;
   description?: string;
   title: string | null;
+  sourceUrl?: string;
 }
 
 /** 자동 선택 후보이자 "이 글에서는 아마"에 보여 줄 뜻. */

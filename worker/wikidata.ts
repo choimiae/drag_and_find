@@ -119,6 +119,9 @@ export function createWikidataProvider(
               label: candidate.title,
               ...(candidate.extract ? { description: candidate.extract } : {}),
               title: normalized(candidate.title) === normalized(query) ? null : candidate.title,
+              ...(normalized(candidate.title) === normalized(query)
+                ? { sourceUrl: candidate.url }
+                : {}),
             })),
             candidates: candidates.filter((candidate) => candidate.extract !== ''),
           },

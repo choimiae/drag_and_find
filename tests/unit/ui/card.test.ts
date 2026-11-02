@@ -245,6 +245,121 @@ describe('renderCard', () => {
 });
 
 describe('disambiguation card', () => {
+  it('links same-name Wikidata meanings to their separate original pages', () => {
+    renderCard(
+      card,
+      'POC',
+      disambiguation({
+        source: 'wikidata',
+        url: 'https://www.wikidata.org/w/index.php?search=POC',
+        disambiguation: {
+          basic: [],
+          meanings: [
+            {
+              label: 'POC',
+              description: '개념 증명',
+              title: null,
+              sourceUrl: 'https://www.wikidata.org/wiki/Q101',
+            },
+            {
+              label: 'POC',
+              description: '다른 분야의 약어',
+              title: null,
+              sourceUrl: 'https://www.wikidata.org/wiki/Q202',
+            },
+          ],
+          candidates: [],
+        },
+      }),
+      handlers,
+    );
+
+    const links = [
+      ...card.querySelectorAll<HTMLAnchorElement>('[data-role="meaning-source-link"]'),
+    ];
+    expect(links.map((link) => link.href)).toEqual([
+      'https://www.wikidata.org/wiki/Q101',
+      'https://www.wikidata.org/wiki/Q202',
+    ]);
+    expect(links.map((link) => link.closest('li')?.textContent)).toEqual([
+      'POC개념 증명원문 보기 →',
+      'POC다른 분야의 약어원문 보기 →',
+    ]);
+    expect(
+      links.every((link) => link.target === '_blank' && link.rel === 'noopener noreferrer'),
+    ).toBe(true);
+    expect(handlers.onSelectMeaning).not.toHaveBeenCalled();
+  });
+
+  it('links a suggested same-name Wikidata meaning to its own source without repeating it', () => {
+    renderCard(
+      card,
+      'POC',
+      disambiguation({
+        source: 'wikidata',
+        suggestion: {
+          title: 'POC',
+          extract: '개념 증명',
+          url: 'https://www.wikidata.org/wiki/Q101',
+        },
+        disambiguation: {
+          basic: [],
+          meanings: [
+            {
+              label: 'POC',
+              description: '개념 증명',
+              title: null,
+              sourceUrl: 'https://www.wikidata.org/wiki/Q101',
+            },
+            {
+              label: 'POC',
+              description: '다른 분야의 약어',
+              title: null,
+              sourceUrl: 'https://www.wikidata.org/wiki/Q202',
+            },
+          ],
+          candidates: [],
+        },
+      }),
+      handlers,
+    );
+
+    expect(part('suggestion')?.tagName).toBe('A');
+    expect(part('suggestion')?.getAttribute('href')).toBe('https://www.wikidata.org/wiki/Q101');
+    expect(part('suggestion')?.getAttribute('target')).toBe('_blank');
+    expect(part('meaning-source-link')?.getAttribute('href')).toBe(
+      'https://www.wikidata.org/wiki/Q202',
+    );
+    expect(card.querySelectorAll('[data-role="meaning-source-link"]')).toHaveLength(1);
+    part('suggestion')?.click();
+    expect(handlers.onSelectMeaning).not.toHaveBeenCalled();
+  });
+
+  it('does not turn an untrusted meaning URL into a link', () => {
+    renderCard(
+      card,
+      'POC',
+      disambiguation({
+        disambiguation: {
+          basic: [],
+          meanings: [
+            {
+              label: 'POC',
+              description: '개념 증명',
+              title: null,
+              sourceUrl: 'https://example.test/wiki/Q101',
+            },
+          ],
+          candidates: [],
+        },
+      }),
+      handlers,
+    );
+
+    expect(part('meaning-source-link')).toBeNull();
+    expect(part('meaning-text')?.textContent).toContain('개념 증명');
+  });
+
   it('shows the suggestion first and opens it on click', () => {
     renderCard(card, '트리거', disambiguation({ suggestion: DATABASE }), handlers);
 

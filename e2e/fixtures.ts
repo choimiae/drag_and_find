@@ -13,6 +13,7 @@ const ARTICLE_HTML = `<!doctype html>
   <p>주문 테이블에 행이 추가될 때마다 재고를 줄이도록 <span id="ambiguous">트리거</span> 기능을 걸어 두었다.</p>
   <p>프로젝트에서 <span id="task">Task</span>를 완료했다.</p>
   <p>여러 의미가 있는 <span id="many">다의어</span> 를 살펴본다.</p>
+  <p>개발 과정에서 <span id="poc">POC</span> 를 확인했다.</p>
 </body></html>`;
 
 export const FRAME_HOST_URL = 'https://example.test/frame-host';
@@ -121,6 +122,35 @@ async function routeFakeNetwork(context: BrowserContext): Promise<void> {
   );
   await context.route('https://lookup.example.test/lookup**', (route) => {
     const query = new URL(route.request().url()).searchParams.get('query') ?? '';
+    if (query === 'POC')
+      return route.fulfill({
+        json: {
+          status: 'found',
+          source: 'wikidata',
+          title: 'POC',
+          extract: '',
+          url: 'https://www.wikidata.org/w/index.php?search=POC',
+          isDisambiguation: true,
+          disambiguation: {
+            basic: [],
+            meanings: [
+              {
+                label: 'POC',
+                description: '개념 증명',
+                title: null,
+                sourceUrl: 'https://www.wikidata.org/wiki/Q101',
+              },
+              {
+                label: 'POC',
+                description: '다른 분야의 약어',
+                title: null,
+                sourceUrl: 'https://www.wikidata.org/wiki/Q202',
+              },
+            ],
+            candidates: [],
+          },
+        },
+      });
     if (query === '인공지능')
       return route.fulfill({
         json: {
@@ -238,6 +268,9 @@ async function routeFakeNetwork(context: BrowserContext): Promise<void> {
   });
   // 확장은 Worker만 호출해야 한다. 이 라우트가 실행되면 직접 위키백과 호출을 오류로 만든다.
   await context.route('https://ko.wikipedia.org/**', (route) => route.abort());
+  await context.route('https://www.wikidata.org/wiki/**', (route) =>
+    route.fulfill({ contentType: 'text/html', body: '<p>위키데이터 원문</p>' }),
+  );
   await context.route(/^https:\/\/(www\.google\.com|search\.naver\.com)\//, (route) =>
     route.fulfill({ contentType: 'text/html', body: '<p>search</p>' }),
   );
