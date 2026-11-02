@@ -192,6 +192,25 @@ describe('Korean meaning mentioned in context', () => {
 
     expect(result).toBeNull();
   });
+
+  it('영어가 많은 문장에서도 한국어 검색어는 한국어 설명과 비교한다', () => {
+    const context =
+      '테이블에 행이 추가될 때 트리거를 걸었다. Application system network service documentation platform configuration';
+    const candidates: SenseCandidate[] = [
+      {
+        title: '데이터베이스 트리거',
+        extract: '테이블에 행이 추가되면 자동 실행',
+        url: 'https://ko.wikipedia.org/wiki/데이터베이스_트리거',
+      },
+      {
+        title: '방아쇠',
+        extract: '총의 격발 장치',
+        url: 'https://ko.wikipedia.org/wiki/방아쇠',
+      },
+    ];
+
+    expect(pickSense(context, ['트리거'], candidates)?.title).toBe('데이터베이스 트리거');
+  });
 });
 
 describe('English expansion mentioned in Korean context', () => {

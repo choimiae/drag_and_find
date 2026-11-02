@@ -30,11 +30,11 @@ export function pickSense(
     if (mentioned !== undefined) {
       return mentioned;
     }
-  }
-  const englishResult = pickEnglishSense(context, words, candidates);
+    const englishResult = pickEnglishSense(context, words, candidates);
 
-  if (englishResult !== undefined) {
-    return englishResult;
+    if (englishResult !== undefined) {
+      return englishResult;
+    }
   }
 
   const contextPieces = twoLetterPieces(context, words);
