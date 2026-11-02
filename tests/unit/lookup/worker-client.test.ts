@@ -1,5 +1,8 @@
 import { describe, expect, it, vi } from 'vitest';
-import { createWorkerProvider } from '../../../lib/lookup/worker-client';
+import {
+  createEnglishContextClient,
+  createWorkerProvider,
+} from '../../../lib/lookup/worker-client';
 
 describe('createWorkerProvider', () => {
   it('waits for a slow Wikipedia fallback after the Naver request times out', async () => {
@@ -47,5 +50,25 @@ describe('createWorkerProvider', () => {
         Response.json({ status: 'found', source: 'oops' }),
       ).lookup('x'),
     ).toEqual({ status: 'network_error' });
+  });
+});
+
+describe('createEnglishContextClient', () => {
+  it('sends only candidate titles to the Worker', async () => {
+    const fetchFn = vi.fn(async () =>
+      Response.json({ extracts: { 관리: 'Application management' } }),
+    );
+    const load = createEnglishContextClient('https://lookup.example.test', fetchFn);
+    expect(await load(['관리'])).toEqual({ 관리: 'Application management' });
+    const [url, init] = fetchFn.mock.calls[0] as unknown as [string, RequestInit];
+    expect(url).toBe('https://lookup.example.test/english-context');
+    expect(JSON.parse(String(init.body))).toEqual({ titles: ['관리'] });
+  });
+
+  it('uses no English extracts when the Worker response is malformed', async () => {
+    const load = createEnglishContextClient('https://lookup.example.test', async () =>
+      Response.json({ extracts: { 관리: 123 } }),
+    );
+    expect(await load(['관리'])).toEqual({});
   });
 });

@@ -11,6 +11,7 @@ const ARTICLE_HTML = `<!doctype html>
   <p><span id="naver-known">인공지능</span> 기술을 살펴보자.</p>
   <p>젊은 세대 사이에서는 <span id="unknown">갓생</span> 이라는 말이 유행한다.</p>
   <p>주문 테이블에 행이 추가될 때마다 재고를 줄이도록 <span id="ambiguous">트리거</span> 기능을 걸어 두었다.</p>
+  <p>프로젝트에서 <span id="task">Task</span>를 완료했다.</p>
 </body></html>`;
 
 export const FRAME_HOST_URL = 'https://example.test/frame-host';
@@ -153,6 +154,25 @@ async function routeFakeNetwork(context: BrowserContext): Promise<void> {
                 url: 'https://ko.wikipedia.org/wiki/%EB%B0%A9%EC%95%84%EC%87%A0',
               },
             ],
+          },
+        },
+      });
+    if (query === 'Task')
+      return route.fulfill({
+        json: {
+          status: 'found',
+          source: 'wikipedia',
+          title: '태스크 (동음이의)',
+          extract: '',
+          url: 'https://ko.wikipedia.org/wiki/태스크_(동음이의)',
+          isDisambiguation: true,
+          disambiguation: {
+            basic: [],
+            meanings: [
+              { label: '태스크', description: '컴퓨팅에서의 명령 실행 문맥', title: '태스크' },
+              { label: '태스크', description: '미국 드라마', title: '태스크 (드라마)' },
+            ],
+            candidates: [],
           },
         },
       });

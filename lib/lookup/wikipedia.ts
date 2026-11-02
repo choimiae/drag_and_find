@@ -53,7 +53,10 @@ export function createWikipediaKoProvider({
     for (let attempt = 1; ; attempt += 1) {
       try {
         const response = await fetchFn(url, {
-          headers: { 'Api-User-Agent': userAgent },
+          headers: {
+            'User-Agent': userAgent,
+            'Api-User-Agent': userAgent,
+          },
           signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
         });
         if (response.status === 429) throw new RateLimitedError();
@@ -123,24 +126,33 @@ export function createWikipediaKoProvider({
           explaintext: '1',
           exlimit: '20',
           exchars: '300',
-        }),
+        }).catch(() => null),
       ]);
       const text = parsed?.parse?.text;
       const links = parsed?.parse?.links;
-      if (typeof text !== 'string' || !Array.isArray(links) || linkedPages === null) return null;
+      if (typeof text !== 'string' || !Array.isArray(links)) return null;
       const isLinkable = <P extends { title?: string }>(page: P): page is P & { title: string } =>
         typeof page.title === 'string' &&
         page.title !== title &&
         !EXCLUDED_CANDIDATE_TITLES.has(page.title);
-      const candidates = linkedPages.flatMap((page) =>
+      const candidates = (linkedPages ?? []).flatMap((page) =>
         isLinkable(page) && typeof page.extract === 'string' && page.extract !== ''
           ? [{ title: page.title, extract: page.extract, url: wikiUrl(page.title) }]
           : [],
       );
       const { basic, meanings } = parseDisambiguationHtml(text, links.filter(isParsedLink));
-      return { basic, meanings, candidates };
+      const extracts = new Map(candidates.map((candidate) => [candidate.title, candidate.extract]));
+      return {
+        basic,
+        meanings: meanings.map((meaning) => {
+          if (meaning.description || !meaning.title) return meaning;
+          const extract = extracts.get(meaning.title);
+          return extract ? { ...meaning, description: shortExplanation(extract) } : meaning;
+        }),
+        candidates,
+      };
     } catch {
-      // 뜻 모음 추가 정보는 덤이다. 실패하면 기존처럼 "뜻이 여러 개" 안내만 보여 준다.
+      // 뜻 구분 본문도 읽지 못한 경우에는 기존 안내만 보여 준다.
       return null;
     }
   }
@@ -148,8 +160,13 @@ export function createWikipediaKoProvider({
   async function findArticle(query: string): Promise<LookupResult> {
     const direct = await fetchSummary(query);
     if (direct) return direct;
+
     const candidate = await searchTopTitle(query);
-    if (!candidate || !isRelevantTitle(query, candidate)) return { status: 'not_found' };
+
+    if (!candidate || !isRelevantTitle(query, candidate)) {
+      return { status: 'not_found' };
+    }
+
     return (await fetchSummary(candidate)) ?? { status: 'not_found' };
   }
 
@@ -166,6 +183,16 @@ export function createWikipediaKoProvider({
       }
     },
   };
+}
+
+function shortExplanation(extract: string): string {
+  const first =
+    extract
+      .trim()
+      .match(/^[^.!?\n]*[.!?]?/u)?.[0]
+      ?.trim() ?? '';
+  const chars = Array.from(first || extract.trim());
+  return chars.length > 140 ? `${chars.slice(0, 140).join('')}…` : chars.join('');
 }
 
 /** 검색 결과 제목이 검색어와 관련 있는지 판정한다(엉뚱한 결과 거르기). */

@@ -181,6 +181,8 @@ export const OVERLAY_CSS = `
 .card-section-title { margin: 11px 0 5px; color: var(--dnf-muted); font-size: 11px; font-weight: 700; }
 .card-basic { margin: 0 0 2px; color: var(--dnf-text-soft); }
 .card-meanings { display: flex; flex-wrap: wrap; gap: 6px; margin: 0; padding: 0; list-style: none; }
+.card-meanings li { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 8px; width: 100%; }
+.card-meaning-description { color: var(--dnf-text-soft); font-size: 12px; }
 .card-meanings .card-meaning {
   padding: 4px 10px;
   border: 1px solid var(--dnf-accent-line);

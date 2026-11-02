@@ -80,7 +80,22 @@ describe('parseDisambiguationHtml', () => {
       '<link rel="mw-deduplicated-inline-style" href="mw-data:TemplateStyles:r1"><ul><li><a href="/wiki/A">A</a>: 설명</li></ul>';
 
     expect(parse(html, [{ ns: 0, title: 'A', exists: true }]).meanings).toEqual([
-      { label: 'A', title: 'A' },
+      { label: 'A', description: '설명', title: 'A' },
+    ]);
+  });
+
+  it('keeps the explanation after a colon for meanings with the same label', () => {
+    const html =
+      '<ul><li><a href="/wiki/태스크">태스크</a>: 컴퓨팅에서의 명령 실행 문맥</li><li><a href="/wiki/태스크_(드라마)">태스크</a>: 미국 드라마</li></ul>';
+
+    expect(
+      parse(html, [
+        { ns: 0, title: '태스크', exists: true },
+        { ns: 0, title: '태스크 (드라마)', exists: true },
+      ]).meanings,
+    ).toEqual([
+      { label: '태스크', description: '컴퓨팅에서의 명령 실행 문맥', title: '태스크' },
+      { label: '태스크', description: '미국 드라마', title: '태스크 (드라마)' },
     ]);
   });
 

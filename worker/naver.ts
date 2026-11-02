@@ -74,23 +74,32 @@ export function createNaverProvider(
         }
 
         const title = stripTags(item.title);
-
-        // 검색어와 다른 제목의 결과는 제외한다.
-        if (normalizeTitle(title) !== normalizeTitle(query)) {
-          return { status: 'not_found' };
-        }
-
+        const extract = stripTags(item.description);
         const url = safeUrl(item.link);
 
         if (!url) {
           return { status: 'not_found' };
         }
 
+        // 제목이 다르면 정답으로 취급하지 않고 관련 후보로 남긴다.
+        if (normalizeTitle(title) !== normalizeTitle(query)) {
+          return {
+            status: 'not_found',
+            related: {
+              source: 'naver',
+              title,
+              extract,
+              url,
+              isDisambiguation: false,
+            },
+          };
+        }
+
         return {
           status: 'found',
           source: 'naver',
           title,
-          extract: stripTags(item.description),
+          extract,
           url,
           isDisambiguation: false,
         };

@@ -46,6 +46,46 @@ beforeEach(() => {
 });
 
 describe('renderCard', () => {
+  it('does not show an unrelated Naver link beside a Wikipedia meaning list', () => {
+    const state = disambiguation({
+      alternatives: [
+        {
+          source: 'naver',
+          title: 'POC',
+          extract: '여행지에서 필요한 의료 서비스',
+          url: 'https://terms.naver.com/entry.naver?docId=1',
+          isDisambiguation: false,
+        },
+      ],
+    });
+
+    renderCard(card, 'POC', state, handlers);
+
+    expect(part('meanings')).not.toBeNull();
+    expect(part('alternative-link')).toBeNull();
+  });
+  it('shows Wikidata as the source for a fallback definition', () => {
+    renderCard(
+      card,
+      '모노레포',
+      {
+        kind: 'result',
+        result: {
+          status: 'found',
+          source: 'wikidata',
+          title: '모노리포',
+          extract: '여러 프로젝트를 하나의 저장소에서 관리하는 방식',
+          url: 'https://www.wikidata.org/wiki/Q1',
+          isDisambiguation: false,
+        },
+      },
+      handlers,
+    );
+
+    expect(part('extract')?.textContent).toContain('여러 프로젝트');
+    expect(part('source-link')?.textContent).toContain('위키데이터');
+    expect(part('attribution')?.textContent).toContain('CC0');
+  });
   it('shows a Naver encyclopedia result with its original link and source', () => {
     renderCard(
       card,
@@ -232,6 +272,29 @@ describe('disambiguation card', () => {
     expect(card.querySelectorAll('[data-role="meaning"]')).toHaveLength(2);
     expect(part('meaning-text')?.textContent).toBe('트리거 전략');
     expect(part('wiki-link')).not.toBeNull();
+  });
+
+  it('shows explanations that distinguish identical meaning labels', () => {
+    const state = disambiguation();
+    if (state.kind !== 'result' || state.result.status !== 'found') throw new Error('bad fixture');
+    state.result.disambiguation = {
+      basic: [],
+      meanings: [
+        { label: '태스크', description: '컴퓨팅에서의 명령 실행 문맥', title: '태스크' },
+        { label: '태스크', description: '미국 드라마', title: '태스크 (드라마)' },
+      ],
+      candidates: [],
+    };
+
+    renderCard(card, 'Task', state, handlers);
+
+    expect(card.querySelectorAll('[data-role="meaning"]')).toHaveLength(2);
+    expect(card.querySelectorAll('[data-role="meaning-description"]')[0]?.textContent).toBe(
+      '컴퓨팅에서의 명령 실행 문맥',
+    );
+    expect(card.querySelectorAll('[data-role="meaning-description"]')[1]?.textContent).toBe(
+      '미국 드라마',
+    );
   });
 
   it('opens a meaning by its article title, not its label', () => {
@@ -572,21 +635,25 @@ describe('design details', () => {
   });
 });
 
-
 describe('source alternatives', () => {
-  it('shows a separate source link without mixing its description into the selected meaning', () => {
-    renderCard(card, 'RAG', disambiguation({
-      alternatives: [{
-        source: 'naver',
-        title: 'RAG',
-        extract: '독일 석탄 기업',
-        url: 'https://terms.naver.com/entry.naver?docId=1',
-        isDisambiguation: false,
-      }],
-    }), handlers);
-    const link = part('alternative-link');
-    expect(link?.textContent).toContain('네이버 백과');
-    expect(link?.getAttribute('href')).toBe('https://terms.naver.com/entry.naver?docId=1');
+  it('omits an unverified alternative beside a disambiguation result', () => {
+    renderCard(
+      card,
+      'RAG',
+      disambiguation({
+        alternatives: [
+          {
+            source: 'naver',
+            title: 'RAG',
+            extract: '독일 석탄 기업',
+            url: 'https://terms.naver.com/entry.naver?docId=1',
+            isDisambiguation: false,
+          },
+        ],
+      }),
+      handlers,
+    );
+    expect(part('alternative-link')).toBeNull();
     expect(part('body')?.textContent).not.toContain('독일 석탄 기업');
   });
 });

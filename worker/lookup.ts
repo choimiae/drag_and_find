@@ -1,4 +1,9 @@
-import type { FoundResult, LookupProvider, LookupResult, LookupSourceResult } from '../lib/lookup/types';
+import type {
+  FoundResult,
+  LookupProvider,
+  LookupResult,
+  LookupAlternative,
+} from '../lib/lookup/types';
 
 /**
  * Worker는 검색어만 받아 두 출처의 결과를 제공한다.
@@ -17,19 +22,20 @@ export async function lookupSources(
   if (first.status === 'found' && second.status === 'found') {
     // 위키백과의 뜻 모음을 브라우저의 기존 의미 구분 UI에 전달한다.
     if (second.isDisambiguation) {
-      return second.disambiguation?.meanings.length
-        ? { ...second, alternatives: [asSource(first)] }
-        : first;
+      return second.disambiguation?.meanings.length ? second : first;
     }
     return { ...first, alternatives: [asSource(second)] };
   }
   if (first.status === 'found') return first;
   if (second.status === 'found') return second;
   if (second.status === 'not_found' && first.status !== 'not_found') return first;
+  if (first.status === 'not_found' && first.related && second.status === 'not_found') {
+    return first;
+  }
   return second;
 }
 
-function asSource(result: FoundResult): LookupSourceResult {
+function asSource(result: FoundResult): LookupAlternative {
   const { source, title, extract, url, isDisambiguation, disambiguation } = result;
   return {
     source: source ?? 'wikipedia',

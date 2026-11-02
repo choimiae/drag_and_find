@@ -15,6 +15,7 @@ export type CardState =
 const MAX_MEANINGS = 8;
 const MAX_LABEL_LENGTH = 40;
 const LICENSE_URL = 'https://creativecommons.org/licenses/by-sa/4.0/deed.ko';
+const CC0_URL = 'https://creativecommons.org/publicdomain/zero/1.0/deed.ko';
 
 export interface CardHandlers {
   onClose(): void;
@@ -81,8 +82,29 @@ function bodyContent(doc: Document, state: CardState, handlers: CardHandlers): N
   switch (result.status) {
     case 'found':
       return foundContent(doc, result, handlers.onSelectMeaning);
-    case 'not_found':
-      return [doc.createTextNode('네이버 백과와 위키백과에 결과가 없습니다')];
+    case 'not_found': {
+      if (!result.related) {
+        return [doc.createTextNode('네이버 백과와 위키백과에 결과가 없습니다')];
+      }
+
+      const related = result.related;
+
+      return [
+        message(doc, '정확히 일치하는 설명은 찾지 못했습니다.'),
+        sectionTitle(doc, `관련 문서: ${related.title}`),
+        element(doc, 'p', {
+          className: 'card-extract',
+          role: 'related-extract',
+          text: related.extract,
+        }),
+        externalLink(doc, related.url, '네이버 백과에서 보기 →', 'related-link', 'card-link'),
+        element(doc, 'p', {
+          className: 'card-attribution',
+          role: 'attribution',
+          text: '출처: 네이버 백과 검색 결과',
+        }),
+      ];
+    }
     case 'rate_limited':
       return [doc.createTextNode('요청이 많아 잠시 막혔습니다. 잠시 후 다시 시도해 주세요')];
     case 'network_error':
@@ -107,14 +129,12 @@ function foundContent(
     return [
       message(doc, '뜻이 여러 개인 단어입니다'),
       sourceLink(doc, result),
-      ...alternativeLinks(doc, result),
       attribution(doc, result),
     ];
   }
   return [
     ...disambiguationContent(doc, result.disambiguation, result.suggestion, onSelect),
     sourceLink(doc, result),
-    ...alternativeLinks(doc, result),
     attribution(doc, result),
   ];
 }
@@ -195,6 +215,15 @@ function meaningItem(
         })
       : meaningButton(doc, meaning.label, meaning.title, 'meaning', onSelect),
   );
+  if (meaning.description) {
+    item.append(
+      element(doc, 'span', {
+        className: 'card-meaning-description',
+        role: 'meaning-description',
+        text: meaning.description,
+      }),
+    );
+  }
   return item;
 }
 
@@ -323,9 +352,7 @@ function alternativeLinks(doc: Document, result: FoundResult): HTMLElement[] {
       externalLink(
         doc,
         alternative.url,
-        alternative.source === 'naver'
-          ? '다른 출처: 네이버 백과에서 보기 →'
-          : '다른 출처: 위키백과에서 보기 →',
+        `다른 출처: ${sourceName(alternative.source)}에서 보기 →`,
         'alternative-link',
         'card-link',
       ),
@@ -334,12 +361,12 @@ function alternativeLinks(doc: Document, result: FoundResult): HTMLElement[] {
 }
 
 function sourceLink(doc: Document, result: FoundResult): HTMLElement {
-  const naver = result.source === 'naver';
+  const wikipedia = result.source === undefined || result.source === 'wikipedia';
   return externalLink(
     doc,
     result.url,
-    naver ? '네이버 백과에서 보기 →' : '위키백과에서 보기 →',
-    naver ? 'source-link' : 'wiki-link',
+    `${sourceName(result.source)}에서 보기 →`,
+    wikipedia ? 'wiki-link' : 'source-link',
     'card-link',
   );
 }
@@ -351,12 +378,26 @@ function attribution(doc: Document, result: FoundResult): HTMLElement {
     line.textContent = '출처: 네이버 백과 검색 결과';
     return line;
   }
+  if (result.source === 'wikidata') {
+    line.append(
+      doc.createTextNode('출처: 위키데이터 ('),
+      externalLink(doc, CC0_URL, 'CC0', 'license-link', 'card-license'),
+      doc.createTextNode(')'),
+    );
+    return line;
+  }
   line.append(
     doc.createTextNode('출처: 위키백과 ('),
     externalLink(doc, LICENSE_URL, 'CC BY-SA 4.0', 'license-link', 'card-license'),
     doc.createTextNode(')'),
   );
   return line;
+}
+
+function sourceName(source: FoundResult['source']): string {
+  if (source === 'naver') return '네이버 백과';
+  if (source === 'wikidata') return '위키데이터';
+  return '위키백과';
 }
 
 function retryButton(doc: Document, onRetry: () => void): HTMLElement {

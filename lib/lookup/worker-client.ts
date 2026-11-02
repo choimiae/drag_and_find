@@ -26,3 +26,36 @@ export function createWorkerProvider(baseUrl: string, fetchFn: FetchFn = fetch):
     },
   };
 }
+
+/** 문맥 없이 후보 문서 제목만 Worker에 보내 영어 설명을 받는다. */
+export function createEnglishContextClient(
+  baseUrl: string,
+  fetchFn: FetchFn = fetch,
+): (titles: string[]) => Promise<Record<string, string>> {
+  return async (titles) => {
+    if (!baseUrl || titles.length === 0) return {};
+    try {
+      const url = new URL('/english-context', baseUrl);
+      const response = await fetchFn(url.href, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ titles }),
+        signal: AbortSignal.timeout(12000),
+      });
+      if (!response.ok) return {};
+      const data: unknown = await response.json();
+      if (typeof data !== 'object' || data === null || !('extracts' in data)) return {};
+      const extracts = data.extracts;
+      if (typeof extracts !== 'object' || extracts === null || Array.isArray(extracts)) return {};
+      const entries = Object.entries(extracts);
+      if (
+        !entries.every(([title, extract]) => titles.includes(title) && typeof extract === 'string')
+      ) {
+        return {};
+      }
+      return Object.fromEntries(entries) as Record<string, string>;
+    } catch {
+      return {};
+    }
+  };
+}

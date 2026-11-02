@@ -43,29 +43,20 @@ describe('lookupSources', () => {
   it('keeps Naver when Wikipedia returns a regular article', async () => {
     expect(await lookupSources('온보딩', provider(naver), provider(wiki))).toEqual({
       ...naver,
-      alternatives: [{
-        source: 'wikipedia',
-        title: wiki.title,
-        extract: wiki.extract,
-        url: wiki.url,
-        isDisambiguation: false,
-      }],
-    });
-  });
-
-  it('uses a Wikipedia disambiguation result with actual meanings', async () => {
-    expect(await lookupSources('RAG', provider(naver), provider(ambiguity))).toEqual({
-      ...ambiguity,
       alternatives: [
         {
-          source: 'naver',
-          title: naver.title,
-          extract: naver.extract,
-          url: naver.url,
+          source: 'wikipedia',
+          title: wiki.title,
+          extract: wiki.extract,
+          url: wiki.url,
           isDisambiguation: false,
         },
       ],
     });
+  });
+
+  it('uses a Wikipedia disambiguation result with actual meanings', async () => {
+    expect(await lookupSources('RAG', provider(naver), provider(ambiguity))).toEqual(ambiguity);
   });
 
   it('keeps Naver if Wikipedia could not load the meaning list', async () => {
@@ -127,7 +118,10 @@ describe('lookupSources', () => {
     let finishNaver: ((value: LookupResult) => void) | undefined;
     const slowNaver: LookupProvider = {
       lookup: vi.fn(
-        () => new Promise<LookupResult>((resolve) => { finishNaver = resolve; }),
+        () =>
+          new Promise<LookupResult>((resolve) => {
+            finishNaver = resolve;
+          }),
       ),
     };
     const wikipedia = provider(wiki);
@@ -135,6 +129,39 @@ describe('lookupSources', () => {
     const pending = lookupSources('온보딩', slowNaver, wikipedia);
     expect(wikipedia.lookup).toHaveBeenCalledWith('온보딩');
     finishNaver?.(naver);
-    await expect(pending).resolves.toEqual(naver);
+
+    await expect(pending).resolves.toEqual({
+      ...naver,
+      alternatives: [
+        {
+          source: 'wikipedia',
+          title: wiki.title,
+          extract: wiki.extract,
+          url: wiki.url,
+          isDisambiguation: false,
+        },
+      ],
+    });
+  });
+
+  it('위키백과에도 결과가 없으면 네이버 관련 문서를 유지한다', async () => {
+    const related: LookupResult = {
+      status: 'not_found',
+      related: {
+        source: 'naver',
+        title: '관리',
+        extract: '조직이나 일을 운영하고 다스리는 것',
+        url: 'https://terms.naver.com/entry.naver?docId=1',
+        isDisambiguation: false,
+      },
+    };
+
+    const result = await lookupSources(
+      'Management',
+      provider(related),
+      provider({ status: 'not_found' }),
+    );
+
+    expect(result).toEqual(related);
   });
 });

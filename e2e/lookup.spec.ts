@@ -118,6 +118,16 @@ test('뜻이 여러 개인 단어는 문맥상 뜻과 다른 뜻 목록을 보�
   await expect(role(page, 'meanings')).toContainText('트리거 (애니메이션 제작사)');
 });
 
+test('Task의 같은 이름을 가진 뜻들을 설명으로 구분해 보여 준다', async ({ page }) => {
+  await openArticleAndLookUp(page, 'task');
+
+  await expect(role(page, 'meaning')).toHaveCount(2);
+  await expect(role(page, 'meaning-description')).toHaveText([
+    '컴퓨팅에서의 명령 실행 문맥',
+    '미국 드라마',
+  ]);
+});
+
 test('문맥상 뜻을 누르면 그 뜻의 요약으로 카드가 바뀐다', async ({ page }) => {
   await openArticleAndLookUp(page, 'ambiguous');
   await expect(role(page, 'suggestion')).toBeVisible();
