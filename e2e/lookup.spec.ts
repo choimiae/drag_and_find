@@ -128,6 +128,36 @@ test('Task의 같은 이름을 가진 뜻들을 설명으로 구분해 보여 �
   ]);
 });
 
+test('긴 뜻 목록은 마지막 항목까지 스크롤하고 출처와 검색 줄은 보인다', async ({ page }) => {
+  await openArticleAndLookUp(page, 'many');
+
+  const list = role(page, 'meanings');
+  await expect(role(page, 'meaning')).toHaveCount(10);
+  await list.evaluate((element) => {
+    element.scrollTop = element.scrollHeight;
+  });
+  expect(await list.evaluate((element) => element.scrollTop)).toBeGreaterThan(0);
+  await expect(role(page, 'meaning').last()).toBeVisible();
+  await expect(role(page, 'title')).toHaveText('다의어');
+  await expect(role(page, 'wiki-link')).toBeVisible();
+  await expect(role(page, 'attribution')).toContainText('위키백과 설명 일부');
+  await expect(role(page, 'search-input')).toBeVisible();
+
+  await role(page, 'meaning').last().click();
+  await expect(role(page, 'title')).toHaveText('뜻 10');
+  await expect(role(page, 'extract')).toContainText('열 번째 뜻');
+});
+
+test('좁은 화면에서도 출처와 검색 줄은 카드에 고정된다', async ({ page }) => {
+  await page.setViewportSize({ width: 375, height: 320 });
+  await openArticleAndLookUp(page, 'many');
+
+  await expect(role(page, 'meaning')).toHaveCount(10);
+  await expect(role(page, 'wiki-link')).toBeInViewport();
+  await expect(role(page, 'attribution')).toBeInViewport();
+  await expect(role(page, 'search-input')).toBeInViewport();
+});
+
 test('문맥상 뜻을 누르면 그 뜻의 요약으로 카드가 바뀐다', async ({ page }) => {
   await openArticleAndLookUp(page, 'ambiguous');
   await expect(role(page, 'suggestion')).toBeVisible();

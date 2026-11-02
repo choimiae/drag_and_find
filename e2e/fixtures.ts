@@ -12,6 +12,7 @@ const ARTICLE_HTML = `<!doctype html>
   <p>젊은 세대 사이에서는 <span id="unknown">갓생</span> 이라는 말이 유행한다.</p>
   <p>주문 테이블에 행이 추가될 때마다 재고를 줄이도록 <span id="ambiguous">트리거</span> 기능을 걸어 두었다.</p>
   <p>프로젝트에서 <span id="task">Task</span>를 완료했다.</p>
+  <p>여러 의미가 있는 <span id="many">다의어</span> 를 살펴본다.</p>
 </body></html>`;
 
 export const FRAME_HOST_URL = 'https://example.test/frame-host';
@@ -54,6 +55,12 @@ const SUMMARIES: Record<string, object> = {
     content_urls: {
       desktop: { page: 'https://ko.wikipedia.org/wiki/%EB%B0%A9%EC%95%84%EC%87%A0' },
     },
+  },
+  '뜻 10': {
+    type: 'standard',
+    title: '뜻 10',
+    extract: '열 번째 뜻의 상세 설명이다.',
+    content_urls: { desktop: { page: 'https://ko.wikipedia.org/wiki/뜻_10' } },
   },
 };
 
@@ -172,6 +179,26 @@ async function routeFakeNetwork(context: BrowserContext): Promise<void> {
               { label: '태스크', description: '컴퓨팅에서의 명령 실행 문맥', title: '태스크' },
               { label: '태스크', description: '미국 드라마', title: '태스크 (드라마)' },
             ],
+            candidates: [],
+          },
+        },
+      });
+    if (query === '다의어')
+      return route.fulfill({
+        json: {
+          status: 'found',
+          source: 'wikipedia',
+          title: '다의어',
+          extract: '',
+          url: 'https://ko.wikipedia.org/wiki/다의어',
+          isDisambiguation: true,
+          disambiguation: {
+            basic: [],
+            meanings: Array.from({ length: 10 }, (_, index) => ({
+              label: `뜻 ${index + 1}`,
+              description: `${index + 1}번째 한국어 설명`,
+              title: `뜻 ${index + 1}`,
+            })),
             candidates: [],
           },
         },

@@ -119,6 +119,8 @@ export const OVERLAY_CSS = `
 .card-body::-webkit-scrollbar { width: 6px; }
 .card-body::-webkit-scrollbar-thumb { background: var(--dnf-scrollbar); border-radius: 999px; }
 .card-body::-webkit-scrollbar-track { background: transparent; }
+.card-source { flex: none; padding: 0 15px 8px; }
+.card-source .card-link { margin-top: 4px; }
 .card-extract {
   margin: 4px 0 0;
   color: var(--dnf-text-soft);
@@ -180,30 +182,24 @@ export const OVERLAY_CSS = `
 }
 .card-section-title { margin: 11px 0 5px; color: var(--dnf-muted); font-size: 11px; font-weight: 700; }
 .card-basic { margin: 0 0 2px; color: var(--dnf-text-soft); }
-.card-meanings { display: flex; flex-wrap: wrap; gap: 6px; margin: 0; padding: 0; list-style: none; }
-.card-meanings li { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 8px; width: 100%; }
-.card-meaning-description { color: var(--dnf-text-soft); font-size: 12px; }
-.card-meanings .card-meaning {
-  padding: 4px 10px;
-  border: 1px solid var(--dnf-accent-line);
-  border-radius: 999px;
-  background: var(--dnf-accent-soft);
-  color: var(--dnf-tag-text);
-  cursor: pointer;
+.card-meanings { display: block; max-height: 240px; overflow-y: auto; margin: 0; padding: 0; list-style: none; }
+.card-meanings li + li { border-top: 1px solid var(--dnf-divider); }
+.card-meanings .card-meaning, .card-meaning-text {
+  display: block;
+  box-sizing: border-box;
+  width: 100%;
+  padding: 9px 6px;
+  border: 0;
+  background: transparent;
+  color: var(--dnf-text);
   font: inherit;
-  font-size: 12px;
   text-align: left;
 }
-.card-meanings .card-meaning:hover, .card-meanings .card-meaning:focus-visible { border-color: var(--dnf-accent); }
-.card-meaning-text {
-  display: inline-block;
-  padding: 4px 10px;
-  border: 1px dashed var(--dnf-border);
-  border-radius: 999px;
-  color: var(--dnf-muted);
-  font-size: 12px;
-}
-.card-more { margin: 6px 0 0; color: var(--dnf-muted); font-size: 11.5px; }
+.card-meanings .card-meaning { cursor: pointer; }
+.card-meanings .card-meaning:hover, .card-meanings .card-meaning:focus-visible { background: var(--dnf-accent-soft); }
+.card-meaning-label { display: block; font-weight: 700; }
+.card-meaning-description { display: block; margin-top: 2px; color: var(--dnf-text-soft); font-size: 12px; line-height: 1.45; }
+.card-meaning-text .card-meaning-description { color: var(--dnf-muted); }
 .card-actions {
   display: flex;
   flex: none;

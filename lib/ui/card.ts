@@ -12,7 +12,6 @@ import type { SearchEngine } from '../settings';
 export type CardState =
   { kind: 'loading' } | { kind: 'result'; result: LookupResult } | { kind: 'too_long' };
 
-const MAX_MEANINGS = 8;
 const MAX_LABEL_LENGTH = 40;
 const LICENSE_URL = 'https://creativecommons.org/licenses/by-sa/4.0/deed.ko';
 const CC0_URL = 'https://creativecommons.org/publicdomain/zero/1.0/deed.ko';
@@ -42,16 +41,24 @@ export function renderCard(
   const header = buildHeader(doc, titleFor(query, state), isAmbiguous(state), handlers.onClose);
   const body = element(doc, 'div', { className: 'card-body', role: 'body' });
   body.append(...bodyContent(doc, state, handlers));
+  const sourceResult =
+    state.kind === 'result' && state.result.status === 'found' && state.result.isDisambiguation
+      ? state.result
+      : null;
+  const pinnedSource = sourceResult ? element(doc, 'div', { className: 'card-source' }) : null;
+  if (pinnedSource && sourceResult) {
+    pinnedSource.append(sourceLink(doc, sourceResult), attribution(doc, sourceResult));
+  }
   const keptFooter = state.kind === 'too_long' ? undefined : sameQueryFooter(card, query);
   if (keptFooter) {
     // 입력칸을 문서에 둔 채로 위아래만 바꿔야 한글 조합·실행 취소 기록·포커스가 끊기지 않는다.
     for (const child of Array.from(card.children)) if (child !== keptFooter) child.remove();
-    keptFooter.before(header, body);
+    keptFooter.before(header, body, ...(pinnedSource ? [pinnedSource] : []));
     return;
   }
   const actions =
     state.kind === 'too_long' ? [] : [buildActions(doc, query, handlers.getSearchEngine)];
-  card.replaceChildren(header, body, ...actions);
+  card.replaceChildren(header, body, ...(pinnedSource ? [pinnedSource] : []), ...actions);
 }
 
 /** 같은 검색어로 다시 그릴 때만, 사용자가 고친 값이 든 검색 줄을 그대로 돌려준다. */
@@ -126,17 +133,9 @@ function foundContent(
     ];
   }
   if (!result.disambiguation) {
-    return [
-      message(doc, '뜻이 여러 개인 단어입니다'),
-      sourceLink(doc, result),
-      attribution(doc, result),
-    ];
+    return [message(doc, '뜻이 여러 개인 단어입니다')];
   }
-  return [
-    ...disambiguationContent(doc, result.disambiguation, result.suggestion, onSelect),
-    sourceLink(doc, result),
-    attribution(doc, result),
-  ];
+  return disambiguationContent(doc, result.disambiguation, result.suggestion, onSelect);
 }
 
 function disambiguationContent(
@@ -184,20 +183,8 @@ function meaningList(
   onSelect: (title: string) => void,
 ): Node[] {
   const list = element(doc, 'ul', { className: 'card-meanings', role: 'meanings' });
-  list.append(
-    ...meanings.slice(0, MAX_MEANINGS).map((meaning) => meaningItem(doc, meaning, onSelect)),
-  );
-  const hidden = meanings.length - MAX_MEANINGS;
-  return hidden > 0
-    ? [
-        list,
-        element(doc, 'p', {
-          className: 'card-more',
-          role: 'more-meanings',
-          text: `외 ${hidden}개`,
-        }),
-      ]
-    : [list];
+  list.append(...meanings.map((meaning) => meaningItem(doc, meaning, onSelect)));
+  return [list];
 }
 
 function meaningItem(
@@ -206,24 +193,23 @@ function meaningItem(
   onSelect: (title: string) => void,
 ): HTMLElement {
   const item = element(doc, 'li', {});
-  item.append(
+  const row =
     meaning.title === null
-      ? element(doc, 'span', {
-          className: 'card-meaning-text',
-          role: 'meaning-text',
-          text: shorten(meaning.label),
-        })
-      : meaningButton(doc, meaning.label, meaning.title, 'meaning', onSelect),
-  );
-  if (meaning.description) {
-    item.append(
-      element(doc, 'span', {
-        className: 'card-meaning-description',
-        role: 'meaning-description',
-        text: meaning.description,
-      }),
-    );
+      ? element(doc, 'div', { className: 'card-meaning-text', role: 'meaning-text' })
+      : element(doc, 'button', { className: 'card-meaning', role: 'meaning' });
+  if (meaning.title !== null) {
+    row.setAttribute('type', 'button');
+    row.addEventListener('click', () => onSelect(meaning.title!));
   }
+  row.append(
+    element(doc, 'span', { className: 'card-meaning-label', text: shorten(meaning.label) }),
+    element(doc, 'span', {
+      className: 'card-meaning-description',
+      role: 'meaning-description',
+      text: meaning.description || '간단한 설명이 없습니다.',
+    }),
+  );
+  item.append(row);
   return item;
 }
 
@@ -387,7 +373,11 @@ function attribution(doc: Document, result: FoundResult): HTMLElement {
     return line;
   }
   line.append(
-    doc.createTextNode('출처: 위키백과 ('),
+    doc.createTextNode(
+      result.isDisambiguation && !result.disambiguation
+        ? '출처: 위키백과 ('
+        : '출처: 위키백과 설명 일부 (',
+    ),
     externalLink(doc, LICENSE_URL, 'CC BY-SA 4.0', 'license-link', 'card-license'),
     doc.createTextNode(')'),
   );

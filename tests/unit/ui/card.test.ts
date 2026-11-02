@@ -258,7 +258,9 @@ describe('disambiguation card', () => {
   it('leaves the suggested sense out of the other meanings', () => {
     renderCard(card, '트리거', disambiguation({ suggestion: DATABASE }), handlers);
 
-    const labels = [...card.querySelectorAll('[data-role="meaning"]')].map((b) => b.textContent);
+    const labels = [...card.querySelectorAll('[data-role="meaning"]')].map(
+      (b) => b.querySelector('.card-meaning-label')?.textContent,
+    );
     expect(labels).toEqual(['트리거 (애니메이션 제작사)']);
   });
 
@@ -270,7 +272,9 @@ describe('disambiguation card', () => {
     expect(card.textContent).toContain('다른 뜻');
     expect(card.querySelectorAll('[data-role="basic"]')).toHaveLength(1);
     expect(card.querySelectorAll('[data-role="meaning"]')).toHaveLength(2);
-    expect(part('meaning-text')?.textContent).toBe('트리거 전략');
+    expect(part('meaning-text')?.querySelector('.card-meaning-label')?.textContent).toBe(
+      '트리거 전략',
+    );
     expect(part('wiki-link')).not.toBeNull();
   });
 
@@ -297,6 +301,18 @@ describe('disambiguation card', () => {
     );
   });
 
+  it('keeps the actual source link and excerpt attribution after the meanings', () => {
+    renderCard(card, '트리거', disambiguation(), handlers);
+
+    const meanings = part('meanings');
+    const source = part('wiki-link');
+    const attribution = part('attribution');
+    expect(meanings?.closest('.card-body')?.nextElementSibling).toBe(source?.parentElement);
+    expect(source?.nextElementSibling).toBe(attribution);
+    expect(attribution?.textContent).toContain('위키백과 설명 일부');
+    expect(part('license-link')?.textContent).toBe('CC BY-SA 4.0');
+  });
+
   it('opens a meaning by its article title, not its label', () => {
     const state = disambiguation({
       disambiguation: {
@@ -309,11 +325,11 @@ describe('disambiguation card', () => {
 
     part('meaning')?.click();
 
-    expect(part('meaning')?.textContent).toBe('데이터 모델');
+    expect(part('meaning')?.querySelector('.card-meaning-label')?.textContent).toBe('데이터 모델');
     expect(handlers.onSelectMeaning).toHaveBeenCalledWith('데이터 모델 (전산)');
   });
 
-  it('shows at most eight meanings and counts the rest', () => {
+  it('shows every meaning without a more button', () => {
     const meanings = Array.from({ length: 10 }, (_, i) => ({ label: `뜻 ${i}`, title: `뜻 ${i}` }));
     renderCard(
       card,
@@ -322,8 +338,42 @@ describe('disambiguation card', () => {
       handlers,
     );
 
-    expect(card.querySelectorAll('[data-role="meaning"]')).toHaveLength(8);
-    expect(part('more-meanings')?.textContent).toBe('외 2개');
+    expect(card.querySelectorAll('[data-role="meaning"]')).toHaveLength(10);
+    expect(part('more-meanings')).toBeNull();
+    expect(part('meanings')?.textContent).toContain('뜻 9');
+  });
+
+  it('opens a meaning when its description row is clicked', () => {
+    renderCard(
+      card,
+      '모델',
+      disambiguation({
+        disambiguation: {
+          basic: [],
+          meanings: [
+            {
+              label: '데이터 모델',
+              description: '데이터 구조를 설명',
+              title: '데이터 모델 (전산)',
+            },
+          ],
+          candidates: [],
+        },
+      }),
+      handlers,
+    );
+
+    part('meaning-description')?.click();
+    expect(handlers.onSelectMeaning).toHaveBeenCalledWith('데이터 모델 (전산)');
+  });
+
+  it('uses a Korean placeholder when a meaning has no description', () => {
+    renderCard(card, '트리거', disambiguation(), handlers);
+
+    const descriptions = card.querySelectorAll('[data-role="meaning-description"]');
+    expect(descriptions).toHaveLength(3);
+    expect(descriptions[0]?.textContent).toBe('간단한 설명이 없습니다.');
+    expect(part('meaning-text')?.closest('button')).toBeNull();
   });
 
   it('shortens labels longer than forty characters', () => {
@@ -337,7 +387,9 @@ describe('disambiguation card', () => {
       handlers,
     );
 
-    expect(part('meaning-text')?.textContent).toBe(`${'가'.repeat(40)}…`);
+    expect(part('meaning-text')?.querySelector('.card-meaning-label')?.textContent).toBe(
+      `${'가'.repeat(40)}…`,
+    );
   });
 
   it('never turns meaning text into HTML', () => {
@@ -594,7 +646,7 @@ describe('design details', () => {
         handlers,
       );
 
-      expect(attributionTextOf()).toBe('출처: 위키백과 (CC BY-SA 4.0)');
+      expect(attributionTextOf()).toBe('출처: 위키백과 설명 일부 (CC BY-SA 4.0)');
       const license = part('attribution')?.querySelector('a');
       expect(license?.textContent).toBe('CC BY-SA 4.0');
       expect(license?.getAttribute('href')).toBe(
@@ -607,7 +659,7 @@ describe('design details', () => {
     it('shows the source line on disambiguation results', () => {
       renderCard(card, '트리거', disambiguation(), handlers);
 
-      expect(attributionTextOf()).toBe('출처: 위키백과 (CC BY-SA 4.0)');
+      expect(attributionTextOf()).toBe('출처: 위키백과 설명 일부 (CC BY-SA 4.0)');
     });
 
     it('shows the source line on the notice without extra information', () => {
