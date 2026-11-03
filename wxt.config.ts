@@ -13,7 +13,11 @@ export default defineConfig({
         '모르는 단어를 드래그하고 아이콘 또는 Alt+Shift+F를 누르면 네이버 백과 또는 위키백과 설명을 보여 줍니다.',
       homepage_url: 'https://github.com/choimiae/drag_and_find',
       permissions: ['storage'],
-      host_permissions: workerUrl ? [`${new URL(workerUrl).origin}/*`] : [],
+      host_permissions: [
+        ...(workerUrl ? [`${new URL(workerUrl).origin}/*`] : []),
+        'https://ko.wikipedia.org/*',
+        'https://en.wikipedia.org/*',
+      ],
       commands: {
         'lookup-selection': {
           suggested_key: { default: 'Alt+Shift+F', mac: 'Alt+Shift+F' },

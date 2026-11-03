@@ -51,6 +51,20 @@ describe('createWorkerProvider', () => {
       ).lookup('x'),
     ).toEqual({ status: 'network_error' });
   });
+
+  it('maps Worker HTTP 429 to rate_limited', async () => {
+    const provider = createWorkerProvider('https://lookup.example.test', async () =>
+      Response.json({ status: 'rate_limited' }, { status: 429 }),
+    );
+    expect(await provider.lookup('고양이')).toEqual({ status: 'rate_limited' });
+  });
+
+  it('maps Cloudflare quota HTTP 1027 to network_error', async () => {
+    const provider = createWorkerProvider('https://lookup.example.test', async () =>
+      new Response('quota exceeded', { status: 1027 }),
+    );
+    expect(await provider.lookup('고양이')).toEqual({ status: 'network_error' });
+  });
 });
 
 describe('createEnglishContextClient', () => {
