@@ -11,11 +11,36 @@ const FOUND: LookupResult = {
   isDisambiguation: false,
 };
 
+const MEANINGS: LookupResult = {
+  status: 'found',
+  source: 'wikipedia',
+  title: '트리거',
+  extract: '',
+  url: 'https://ko.wikipedia.org/wiki/트리거',
+  isDisambiguation: true,
+  disambiguation: {
+    basic: [],
+    meanings: [{ label: '데이터베이스 트리거', title: '데이터베이스 트리거' }],
+    candidates: [],
+  },
+};
+
+const DETAIL: LookupResult = {
+  status: 'found',
+  source: 'wikipedia',
+  title: '데이터베이스 트리거',
+  extract: '테이블 변경 시 실행되는 절차',
+  url: 'https://ko.wikipedia.org/wiki/데이터베이스_트리거',
+  isDisambiguation: false,
+};
+
 function fakeOverlay() {
   return {
     showIcon: vi.fn<Overlay['showIcon']>(),
     hideIcon: vi.fn<Overlay['hideIcon']>(),
     showCard: vi.fn<Overlay['showCard']>(),
+    readCardScroll: vi.fn<Overlay['readCardScroll']>(() => ({ body: 25, meanings: 80 })),
+    restoreCardScroll: vi.fn<Overlay['restoreCardScroll']>(),
     hideCard: vi.fn<Overlay['hideCard']>(),
     contains: vi.fn<Overlay['contains']>(() => false),
     setTheme: vi.fn<Overlay['setTheme']>(),
@@ -323,6 +348,91 @@ describe('context and meanings', () => {
     await settle();
 
     expect(requestLookup).toHaveBeenLastCalledWith('온보딩', '요즘 온보딩 과정을 다룬다.');
+  });
+
+  it('returns to the original meaning list and scroll position without another lookup', async () => {
+    const requestLookup = vi
+      .fn<ControllerDeps['requestLookup']>()
+      .mockResolvedValueOnce(MEANINGS)
+      .mockResolvedValueOnce(DETAIL);
+    const { overlay, controller } = setup({ requestLookup });
+    selectContentsOf('term');
+    controller.handleShortcut();
+    await settle();
+
+    overlay.showCard.mock.calls.at(-1)![3].onSelectMeaning('데이터베이스 트리거');
+    await settle();
+    expect(lastCardState(overlay)).toEqual({ kind: 'result', result: DETAIL });
+    expect(overlay.showCard.mock.calls.at(-1)?.[3].onBackToMeanings).toBeTypeOf('function');
+
+    overlay.showCard.mock.calls.at(-1)![3].onBackToMeanings?.();
+
+    expect(lastCardState(overlay)).toEqual({ kind: 'result', result: MEANINGS });
+    expect(overlay.showCard.mock.calls.at(-1)?.[1]).toBe('온보딩');
+    expect(overlay.restoreCardScroll).toHaveBeenCalledWith({ body: 25, meanings: 80 });
+    expect(requestLookup).toHaveBeenCalledTimes(2);
+  });
+
+  it('keeps the restored list when a meaning response arrives after going back', async () => {
+    const pending = deferred<LookupResult>();
+    const requestLookup = vi
+      .fn<ControllerDeps['requestLookup']>()
+      .mockResolvedValueOnce(MEANINGS)
+      .mockReturnValueOnce(pending.promise);
+    const { overlay, controller } = setup({ requestLookup });
+    selectContentsOf('term');
+    controller.handleShortcut();
+    await settle();
+
+    overlay.showCard.mock.calls.at(-1)![3].onSelectMeaning('데이터베이스 트리거');
+    expect(lastCardState(overlay)).toEqual({ kind: 'loading' });
+    overlay.showCard.mock.calls.at(-1)![3].onBackToMeanings?.();
+    pending.resolve(DETAIL);
+    await settle();
+
+    expect(lastCardState(overlay)).toEqual({ kind: 'result', result: MEANINGS });
+    expect(requestLookup).toHaveBeenCalledTimes(2);
+  });
+
+  it('keeps the back action after a meaning lookup fails', async () => {
+    const requestLookup = vi
+      .fn<ControllerDeps['requestLookup']>()
+      .mockResolvedValueOnce(MEANINGS)
+      .mockResolvedValueOnce({ status: 'network_error' });
+    const { overlay, controller } = setup({ requestLookup });
+    selectContentsOf('term');
+    controller.handleShortcut();
+    await settle();
+
+    overlay.showCard.mock.calls.at(-1)![3].onSelectMeaning('데이터베이스 트리거');
+    await settle();
+    expect(lastCardState(overlay)).toEqual({
+      kind: 'result',
+      result: { status: 'network_error' },
+    });
+    overlay.showCard.mock.calls.at(-1)![3].onBackToMeanings?.();
+
+    expect(lastCardState(overlay)).toEqual({ kind: 'result', result: MEANINGS });
+  });
+
+  it('clears the previous meaning list when a new selection is looked up', async () => {
+    const requestLookup = vi
+      .fn<ControllerDeps['requestLookup']>()
+      .mockResolvedValueOnce(MEANINGS)
+      .mockResolvedValueOnce(DETAIL)
+      .mockResolvedValueOnce(FOUND);
+    const { overlay, controller } = setup({ requestLookup });
+    selectContentsOf('term');
+    controller.handleShortcut();
+    await settle();
+    overlay.showCard.mock.calls.at(-1)![3].onSelectMeaning('데이터베이스 트리거');
+    await settle();
+
+    controller.handleShortcut();
+    await settle();
+
+    expect(lastCardState(overlay)).toEqual({ kind: 'result', result: FOUND });
+    expect(overlay.showCard.mock.calls.at(-1)?.[3].onBackToMeanings).toBeUndefined();
   });
 });
 

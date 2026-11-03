@@ -20,6 +20,7 @@ export interface CardHandlers {
   onClose(): void;
   onRetry(): void;
   onSelectMeaning(title: string): void;
+  onBackToMeanings?(): void;
   /** Enter를 누른 순간 바로 읽어야 하므로 동기 함수다 (새 탭이 팝업 차단에 걸리지 않게). */
   getSearchEngine(): SearchEngine;
 }
@@ -38,8 +39,20 @@ export function renderCard(
   handlers: CardHandlers,
 ): void {
   const doc = card.ownerDocument;
-  const header = buildHeader(doc, titleFor(query, state), isAmbiguous(state), handlers.onClose);
+  const title = titleFor(query, state);
+  const header = buildHeader(
+    doc,
+    title,
+    isAmbiguous(state),
+    handlers.onClose,
+    handlers.onBackToMeanings,
+  );
   const body = element(doc, 'div', { className: 'card-body', role: 'body' });
+  if (handlers.onBackToMeanings) {
+    body.append(
+      element(doc, 'strong', { className: 'card-detail-title', role: 'title', text: title }),
+    );
+  }
   body.append(...bodyContent(doc, state, handlers));
   const sourceResult =
     state.kind === 'result' && state.result.status === 'found' && state.result.isDisambiguation
@@ -284,20 +297,33 @@ function buildHeader(
   title: string,
   ambiguous: boolean,
   onClose: () => void,
+  onBackToMeanings?: () => void,
 ): HTMLElement {
   const header = element(doc, 'header', { className: 'card-header' });
-  const heading = element(doc, 'span', { className: 'card-heading' });
-  heading.append(element(doc, 'strong', { className: 'card-title', role: 'title', text: title }));
-  if (ambiguous) {
-    heading.append(
-      element(doc, 'span', { className: 'card-badge', role: 'badge', text: '뜻 여러 개' }),
-    );
+  if (onBackToMeanings) {
+    const back = element(doc, 'button', {
+      className: 'card-back',
+      role: 'back-to-meanings',
+      text: '← 뜻 목록',
+    });
+    back.setAttribute('type', 'button');
+    back.addEventListener('click', onBackToMeanings);
+    header.append(back);
+  } else {
+    const heading = element(doc, 'span', { className: 'card-heading' });
+    heading.append(element(doc, 'strong', { className: 'card-title', role: 'title', text: title }));
+    if (ambiguous) {
+      heading.append(
+        element(doc, 'span', { className: 'card-badge', role: 'badge', text: '뜻 여러 개' }),
+      );
+    }
+    header.append(heading);
   }
   const close = element(doc, 'button', { className: 'card-close', role: 'close', text: '✕' });
   close.setAttribute('type', 'button');
   close.setAttribute('aria-label', '닫기');
   close.addEventListener('click', onClose);
-  header.append(heading, close);
+  header.append(close);
   return header;
 }
 

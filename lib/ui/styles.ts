@@ -115,7 +115,10 @@ export const OVERLAY_CSS = `
   font-size: 13px;
 }
 .card-close:hover, .card-close:focus-visible { color: var(--dnf-text); background: var(--dnf-badge); }
+.card-back { padding: 3px 0; border: 0; background: none; color: var(--dnf-accent); font: inherit; font-size: 11px; font-weight: 700; cursor: pointer; }
+.card-back:hover, .card-back:focus-visible { text-decoration: underline; }
 .card-body { flex: 1 1 auto; min-height: 0; overflow: auto; padding: 4px 15px 12px; }
+.card-detail-title { display: block; margin: 4px 0 10px; font-size: 16px; font-weight: 800; overflow-wrap: anywhere; }
 .card-body::-webkit-scrollbar { width: 6px; }
 .card-body::-webkit-scrollbar-thumb { background: var(--dnf-scrollbar); border-radius: 999px; }
 .card-body::-webkit-scrollbar-track { background: transparent; }

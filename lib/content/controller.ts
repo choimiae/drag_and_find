@@ -3,7 +3,7 @@ import type { LookupResult } from '../lookup/types';
 import { contextAroundRange } from './context';
 import { checkSelection, isInEditableContext } from '../selection';
 import type { CardState } from '../ui/card';
-import type { DocumentRect, Overlay } from '../ui/overlay';
+import type { CardScroll, DocumentRect, Overlay } from '../ui/overlay';
 
 export interface ControllerDeps {
   win: Window;
@@ -26,10 +26,19 @@ interface SelectionSnapshot {
   anchor: DocumentRect;
 }
 
+interface MeaningRoot {
+  query: string;
+  result: LookupResult;
+  context?: string;
+  anchor: DocumentRect;
+  scroll: CardScroll;
+}
+
 /** 선택·클릭·키 입력을 받아 아이콘과 카드를 제어한다. 마지막 요청의 결과만 카드에 반영한다. */
 export function createController(deps: ControllerDeps): Controller {
   const { win, overlay } = deps;
   let latestRequestId = 0;
+  let meaningRoot: MeaningRoot | null = null;
 
   function readSelection(): SelectionSnapshot | null {
     const selection = win.getSelection();
@@ -53,29 +62,69 @@ export function createController(deps: ControllerDeps): Controller {
 
   function closeAll(): void {
     latestRequestId += 1;
+    meaningRoot = null;
     overlay.hideCard();
     overlay.hideIcon();
   }
 
-  function showCard(anchor: DocumentRect, query: string, state: CardState, context?: string): void {
+  function backToMeanings(): void {
+    if (!meaningRoot) return;
+    latestRequestId += 1;
+    const root = meaningRoot;
+    meaningRoot = null;
+    showCard(root.anchor, root.query, { kind: 'result', result: root.result }, root.context);
+    overlay.restoreCardScroll(root.scroll);
+  }
+
+  function showCard(
+    anchor: DocumentRect,
+    query: string,
+    state: CardState,
+    context?: string,
+    isMeaningDetail = false,
+  ): void {
     overlay.showCard(anchor, query, state, {
       onClose: closeAll,
-      onRetry: () => void lookUp(query, anchor, context),
+      onRetry: () => void lookUp(query, anchor, context, isMeaningDetail),
       // 다른 뜻은 제목 그대로 찾으므로 문맥으로 다시 고를 필요가 없다.
-      onSelectMeaning: (title) => void lookUp(title, anchor),
+      onSelectMeaning: (title) => {
+        if (
+          !meaningRoot &&
+          state.kind === 'result' &&
+          state.result.status === 'found' &&
+          state.result.isDisambiguation &&
+          state.result.disambiguation
+        ) {
+          meaningRoot = {
+            query,
+            result: state.result,
+            context,
+            anchor,
+            scroll: overlay.readCardScroll(),
+          };
+        }
+        void lookUp(title, anchor, undefined, true);
+      },
+      onBackToMeanings: isMeaningDetail && meaningRoot ? backToMeanings : undefined,
       getSearchEngine: deps.getSearchEngine,
     });
   }
 
-  async function lookUp(query: string, anchor: DocumentRect, context?: string): Promise<void> {
+  async function lookUp(
+    query: string,
+    anchor: DocumentRect,
+    context?: string,
+    isMeaningDetail = false,
+  ): Promise<void> {
+    if (!isMeaningDetail) meaningRoot = null;
     latestRequestId += 1;
     const requestId = latestRequestId;
     overlay.hideIcon();
-    showCard(anchor, query, { kind: 'loading' }, context);
+    showCard(anchor, query, { kind: 'loading' }, context, isMeaningDetail);
 
     const result = await deps.requestLookup(query, context);
     if (requestId !== latestRequestId) return;
-    showCard(anchor, query, { kind: 'result', result }, context);
+    showCard(anchor, query, { kind: 'result', result }, context, isMeaningDetail);
   }
 
   async function isIconEnabledSafely(): Promise<boolean> {
@@ -122,6 +171,7 @@ export function createController(deps: ControllerDeps): Controller {
       if (check.kind === 'empty') return;
       if (check.kind === 'too_long') {
         latestRequestId += 1;
+        meaningRoot = null;
         overlay.hideIcon();
         showCard(snapshot.anchor, '', { kind: 'too_long' });
         return;

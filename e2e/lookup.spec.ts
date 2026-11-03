@@ -52,11 +52,31 @@ test('Worker 요청 제한 시 위키백과를 직접 조회해 카드를 보여
 test('네이버 백과 결과는 네이버 출처와 원문 링크를 보여 준다', async ({ page }) => {
   await openArticleAndLookUp(page, 'naver-known');
   await expect(role(page, 'extract')).toContainText('학습과 추론');
+  await expect(role(page, 'source-links').locator('a')).toHaveText(['네이버 백과 ↗', '위키백과 ↗']);
   await expect(role(page, 'source-link')).toHaveAttribute(
     'href',
     'https://terms.naver.com/entry.naver?docId=1',
   );
   await expect(role(page, 'attribution')).toContainText('네이버 백과');
+});
+
+test('뜻 상세에서 원래 뜻 목록과 스크롤 위치로 돌아간다', async ({ page }) => {
+  await openArticleAndLookUp(page, 'many');
+  await expect(role(page, 'meaning')).toHaveCount(10);
+  const listScroll = await role(page, 'meanings').evaluate((element) => {
+    element.scrollTop = element.scrollHeight;
+    return element.scrollTop;
+  });
+  expect(listScroll).toBeGreaterThan(0);
+
+  await role(page, 'meaning').last().click();
+  await expect(role(page, 'title')).toHaveText('뜻 10');
+  await expect(role(page, 'back-to-meanings')).toBeVisible();
+  await role(page, 'back-to-meanings').click();
+
+  await expect(role(page, 'title')).toHaveText('다의어');
+  await expect(role(page, 'meaning')).toHaveCount(10);
+  expect(await role(page, 'meanings').evaluate((element) => element.scrollTop)).toBe(listScroll);
 });
 
 test('위키백과에 없는 단어는 안내 문구와 검색 버튼을 보여 준다', async ({ page }) => {

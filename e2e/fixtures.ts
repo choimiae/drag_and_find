@@ -160,6 +160,15 @@ async function routeFakeNetwork(context: BrowserContext): Promise<void> {
           extract: '컴퓨터가 학습과 추론을 하는 기술',
           url: 'https://terms.naver.com/entry.naver?docId=1',
           isDisambiguation: false,
+          alternatives: [
+            {
+              source: 'wikipedia',
+              title: '인공지능',
+              extract: '사람의 지능을 모방하는 기술',
+              url: 'https://ko.wikipedia.org/wiki/인공지능',
+              isDisambiguation: false,
+            },
+          ],
         },
       });
     if (query === '트리거')

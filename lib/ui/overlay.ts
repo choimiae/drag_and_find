@@ -15,10 +15,17 @@ export interface DocumentRect {
   right: number;
 }
 
+export interface CardScroll {
+  body: number;
+  meanings: number;
+}
+
 export interface Overlay {
   showIcon(anchor: DocumentRect, onActivate: () => void): void;
   hideIcon(): void;
   showCard(anchor: DocumentRect, query: string, state: CardState, handlers: CardHandlers): void;
+  readCardScroll(): CardScroll;
+  restoreCardScroll(scroll: CardScroll): void;
   hideCard(): void;
   contains(event: Event): boolean;
   setTheme(theme: ThemeSetting): void;
@@ -102,6 +109,18 @@ export function createOverlay(doc: Document, win: Window): Overlay {
       const placement = computeCardPlacement(toViewportRect(anchor), size, viewport());
       place(card, placement.top, placement.left);
       card.style.maxHeight = `${placement.maxHeight}px`;
+    },
+    readCardScroll() {
+      return {
+        body: card?.querySelector<HTMLElement>('[data-role="body"]')?.scrollTop ?? 0,
+        meanings: card?.querySelector<HTMLElement>('[data-role="meanings"]')?.scrollTop ?? 0,
+      };
+    },
+    restoreCardScroll(scroll) {
+      const body = card?.querySelector<HTMLElement>('[data-role="body"]');
+      const meanings = card?.querySelector<HTMLElement>('[data-role="meanings"]');
+      if (body) body.scrollTop = scroll.body;
+      if (meanings) meanings.scrollTop = scroll.meanings;
     },
     hideCard() {
       card?.remove();

@@ -184,6 +184,48 @@ describe('renderCard', () => {
     );
   });
 
+  it('shows a back button and the detail title when viewing a meaning', () => {
+    const onBackToMeanings = vi.fn();
+    const detailHandlers = { ...handlers, onBackToMeanings };
+    renderCard(
+      card,
+      '데이터베이스 트리거',
+      {
+        kind: 'result',
+        result: {
+          status: 'found',
+          source: 'wikipedia',
+          title: '데이터베이스 트리거',
+          extract: '테이블 변경 시 실행되는 절차',
+          url: 'https://ko.wikipedia.org/wiki/데이터베이스_트리거',
+          isDisambiguation: false,
+        },
+      },
+      detailHandlers,
+    );
+
+    expect(part('back-to-meanings')?.textContent).toBe('← 뜻 목록');
+    expect(part('title')?.textContent).toBe('데이터베이스 트리거');
+    expect(part('title')?.closest('.card-body')).not.toBeNull();
+    part('back-to-meanings')?.click();
+    expect(onBackToMeanings).toHaveBeenCalledTimes(1);
+  });
+
+  it('keeps the back button available while a meaning is loading', () => {
+    renderCard(
+      card,
+      '데이터베이스 트리거',
+      { kind: 'loading' },
+      {
+        ...handlers,
+        onBackToMeanings: vi.fn(),
+      },
+    );
+
+    expect(part('back-to-meanings')?.textContent).toBe('← 뜻 목록');
+    expect(part('body')?.textContent).toContain('찾는 중…');
+  });
+
   it('opens search buttons in a new tab safely', () => {
     renderCard(card, '온보딩', { kind: 'loading' }, handlers);
 

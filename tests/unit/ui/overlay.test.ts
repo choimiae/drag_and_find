@@ -107,6 +107,39 @@ describe('createOverlay', () => {
     expect(inShadow('card')).toBeNull();
   });
 
+  it('restores both card and meaning-list scroll positions after a detail view', () => {
+    const overlay = createOverlay(document, window);
+    const meanings = {
+      kind: 'result' as const,
+      result: {
+        status: 'found' as const,
+        source: 'wikipedia' as const,
+        title: '트리거',
+        extract: '',
+        url: 'https://ko.wikipedia.org/wiki/트리거',
+        isDisambiguation: true,
+        disambiguation: {
+          basic: [],
+          meanings: [{ label: '데이터베이스 트리거', title: '데이터베이스 트리거' }],
+          candidates: [],
+        },
+      },
+    };
+    overlay.showCard(ANCHOR, '트리거', meanings, handlers());
+    inShadow('body')!.scrollTop = 25;
+    inShadow('meanings')!.scrollTop = 80;
+
+    const scroll = overlay.readCardScroll();
+    expect(scroll).toEqual({ body: 25, meanings: 80 });
+
+    overlay.showCard(ANCHOR, '데이터베이스 트리거', { kind: 'loading' }, handlers());
+    overlay.showCard(ANCHOR, '트리거', meanings, handlers());
+    overlay.restoreCardScroll(scroll);
+
+    expect(inShadow('body')?.scrollTop).toBe(25);
+    expect(inShadow('meanings')?.scrollTop).toBe(80);
+  });
+
   it('tells whether an event happened inside the overlay', () => {
     const overlay = createOverlay(document, window);
     overlay.showIcon(ANCHOR, vi.fn());
