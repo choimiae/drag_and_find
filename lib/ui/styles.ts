@@ -120,7 +120,7 @@ export const OVERLAY_CSS = `
 .card-body::-webkit-scrollbar-thumb { background: var(--dnf-scrollbar); border-radius: 999px; }
 .card-body::-webkit-scrollbar-track { background: transparent; }
 .card-source { flex: none; padding: 0 15px 8px; }
-.card-source .card-link { margin-top: 4px; }
+.card-source .card-source-links { margin-top: 0; }
 .card-extract {
   margin: 4px 0 0;
   color: var(--dnf-text-soft);
@@ -139,6 +139,11 @@ export const OVERLAY_CSS = `
   text-decoration: none;
 }
 .card-link:hover, .card-link:focus-visible { text-decoration: underline; }
+.card-source-links { display: flex; flex-wrap: wrap; align-items: center; column-gap: 7px; row-gap: 4px; margin-top: 10px; padding-top: 8px; border-top: 1px solid var(--dnf-divider); font-size: 11px; }
+.card-source-label { margin-right: auto; color: var(--dnf-muted); font-weight: 700; }
+.card-source-link { color: var(--dnf-accent); font-size: 11px; font-weight: 700; white-space: nowrap; text-decoration: none; }
+.card-source-link:hover, .card-source-link:focus-visible { text-decoration: underline; }
+.card-source-separator { width: 1px; height: 12px; background: var(--dnf-divider); }
 .card-attribution { margin: 4px 0 0; color: var(--dnf-muted); font-size: 11px; text-align: right; }
 .card-license { color: inherit; text-decoration: underline; }
 .card button:focus-visible, .card a:focus-visible { outline: 2px solid var(--dnf-accent); outline-offset: 2px; }

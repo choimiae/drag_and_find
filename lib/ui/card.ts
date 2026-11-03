@@ -47,7 +47,7 @@ export function renderCard(
       : null;
   const pinnedSource = sourceResult ? element(doc, 'div', { className: 'card-source' }) : null;
   if (pinnedSource && sourceResult) {
-    pinnedSource.append(sourceLink(doc, sourceResult), attribution(doc, sourceResult));
+    pinnedSource.append(sourceLinksRow(doc, sourceResult), attribution(doc, sourceResult));
   }
   const keptFooter = state.kind === 'too_long' ? undefined : sameQueryFooter(card, query);
   if (keptFooter) {
@@ -127,8 +127,7 @@ function foundContent(
   if (!result.isDisambiguation) {
     return [
       element(doc, 'p', { className: 'card-extract', role: 'extract', text: result.extract }),
-      sourceLink(doc, result),
-      ...alternativeLinks(doc, result),
+      sourceLinksRow(doc, result),
       attribution(doc, result),
     ];
   }
@@ -383,12 +382,26 @@ function alternativeLinks(doc: Document, result: FoundResult): HTMLElement[] {
       externalLink(
         doc,
         alternative.url,
-        `다른 출처: ${sourceName(alternative.source)}에서 보기 →`,
+        `${sourceName(alternative.source)} ↗`,
         'alternative-link',
-        'card-link',
+        'card-source-link',
       ),
     ];
   });
+}
+
+function sourceLinksRow(doc: Document, result: FoundResult): HTMLElement {
+  const row = element(doc, 'div', { className: 'card-source-links', role: 'source-links' });
+  row.append(
+    element(doc, 'span', { className: 'card-source-label', text: '원문' }),
+    sourceLink(doc, result),
+  );
+  if (!result.isDisambiguation) {
+    for (const alternative of alternativeLinks(doc, result)) {
+      row.append(element(doc, 'span', { className: 'card-source-separator' }), alternative);
+    }
+  }
+  return row;
 }
 
 function sourceLink(doc: Document, result: FoundResult): HTMLElement {
@@ -396,9 +409,9 @@ function sourceLink(doc: Document, result: FoundResult): HTMLElement {
   return externalLink(
     doc,
     result.url,
-    `${sourceName(result.source)}에서 보기 →`,
+    `${sourceName(result.source)} ↗`,
     wikipedia ? 'wiki-link' : 'source-link',
-    'card-link',
+    'card-source-link',
   );
 }
 

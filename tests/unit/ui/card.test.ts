@@ -105,12 +105,71 @@ describe('renderCard', () => {
     );
 
     expect(part('extract')?.textContent).toBe('신입 직원이 조직에 적응하는 과정');
-    expect(part('source-link')?.textContent).toBe('네이버 백과에서 보기 →');
+    expect(part('source-link')?.textContent).toBe('네이버 백과 ↗');
     expect(part('source-link')?.getAttribute('href')).toBe(
       'https://terms.naver.com/entry.naver?docId=123',
     );
     expect(part('attribution')?.textContent).toContain('네이버 백과');
     expect(part('license-link')).toBeNull();
+  });
+
+  it('groups the Naver original and Wikipedia alternative into one compact source row', () => {
+    renderCard(
+      card,
+      '인공지능',
+      {
+        kind: 'result',
+        result: {
+          status: 'found',
+          source: 'naver',
+          title: '인공지능',
+          extract: '학습과 추론을 하는 기술',
+          url: 'https://terms.naver.com/entry.naver?docId=1',
+          isDisambiguation: false,
+          alternatives: [
+            {
+              source: 'wikipedia',
+              title: '인공지능',
+              extract: '인공 지능에 관한 설명',
+              url: 'https://ko.wikipedia.org/wiki/인공지능',
+              isDisambiguation: false,
+            },
+          ],
+        },
+      },
+      handlers,
+    );
+
+    const links = [...(part('source-links')?.querySelectorAll('a') ?? [])];
+    expect(part('source-links')?.textContent).toContain('원문');
+    expect(links.map((link) => link.textContent)).toEqual(['네이버 백과 ↗', '위키백과 ↗']);
+    expect(links.map((link) => link.getAttribute('href'))).toEqual([
+      'https://terms.naver.com/entry.naver?docId=1',
+      'https://ko.wikipedia.org/wiki/인공지능',
+    ]);
+    expect(links.every((link) => link.target === '_blank')).toBe(true);
+  });
+
+  it('shows only one original link for a single-source result', () => {
+    renderCard(
+      card,
+      '온보딩',
+      {
+        kind: 'result',
+        result: {
+          status: 'found',
+          source: 'wikipedia',
+          title: '온보딩',
+          extract: '신입 직원의 적응 과정',
+          url: 'https://ko.wikipedia.org/wiki/온보딩',
+          isDisambiguation: false,
+        },
+      },
+      handlers,
+    );
+
+    expect(part('source-links')?.querySelectorAll('a')).toHaveLength(1);
+    expect(part('source-links')?.textContent).toContain('위키백과 ↗');
   });
   it('shows loading text with the query and search buttons', () => {
     renderCard(card, '온보딩', { kind: 'loading' }, handlers);
@@ -154,7 +213,7 @@ describe('renderCard', () => {
     expect(part('title')?.textContent).toBe('서비스형 소프트웨어');
     expect(part('extract')?.textContent).toBe('응용 소프트웨어를 서비스로 제공하는 방식');
     expect(part('wiki-link')?.getAttribute('href')).toBe('https://ko.wikipedia.org/wiki/x');
-    expect(part('wiki-link')?.textContent).toBe('위키백과에서 보기 →');
+    expect(part('wiki-link')?.textContent).toBe('위키백과 ↗');
     expect(part('google')?.getAttribute('href')).toBe('https://www.google.com/search?q=SaaS');
   });
 
@@ -422,8 +481,10 @@ describe('disambiguation card', () => {
     const meanings = part('meanings');
     const source = part('wiki-link');
     const attribution = part('attribution');
-    expect(meanings?.closest('.card-body')?.nextElementSibling).toBe(source?.parentElement);
-    expect(source?.nextElementSibling).toBe(attribution);
+    expect(meanings?.closest('.card-body')?.nextElementSibling).toBe(
+      source?.parentElement?.parentElement,
+    );
+    expect(source?.parentElement?.nextElementSibling).toBe(attribution);
     expect(attribution?.textContent).toContain('위키백과 설명 일부');
     expect(part('license-link')?.textContent).toBe('CC BY-SA 4.0');
   });
