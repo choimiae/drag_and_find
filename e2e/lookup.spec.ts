@@ -21,10 +21,12 @@ test('드래그 후 아이콘을 누르면 위키백과 요약 카드가 뜬다'
 });
 
 test('Worker 요청 제한 시 위키백과를 직접 조회해 카드를 보여 준다', async ({ page, context }) => {
+  let workerRequests = 0;
   let wikipediaRequests = 0;
-  await context.route('https://lookup.example.test/lookup**', (route) =>
-    route.fulfill({ status: 429, json: { status: 'rate_limited' } }),
-  );
+  await context.route('https://lookup.example.test/lookup**', (route) => {
+    workerRequests += 1;
+    return route.fulfill({ status: 429, json: { status: 'rate_limited' } });
+  });
   await context.route('https://ko.wikipedia.org/**', (route) => {
     wikipediaRequests += 1;
     return route.fulfill({
@@ -43,6 +45,7 @@ test('Worker 요청 제한 시 위키백과를 직접 조회해 카드를 보여
 
   await expect(role(page, 'title')).toHaveText('온보딩');
   await expect(role(page, 'extract')).toContainText('신입 직원');
+  expect(workerRequests).toBe(1);
   expect(wikipediaRequests).toBe(1);
 });
 
