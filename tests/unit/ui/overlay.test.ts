@@ -135,9 +135,11 @@ describe('createOverlay', () => {
     overlay.showCard(ANCHOR, '데이터베이스 트리거', { kind: 'loading' }, handlers());
     overlay.showCard(ANCHOR, '트리거', meanings, handlers());
     overlay.restoreCardScroll(scroll);
+    overlay.focusMeaning('데이터베이스 트리거');
 
     expect(inShadow('body')?.scrollTop).toBe(25);
     expect(inShadow('meanings')?.scrollTop).toBe(80);
+    expect(host()?.shadowRoot?.activeElement).toBe(inShadow('meaning'));
   });
 
   it('tells whether an event happened inside the overlay', () => {

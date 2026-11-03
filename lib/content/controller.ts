@@ -29,6 +29,7 @@ interface SelectionSnapshot {
 interface MeaningRoot {
   query: string;
   result: LookupResult;
+  selectedTitle: string;
   context?: string;
   anchor: DocumentRect;
   scroll: CardScroll;
@@ -74,6 +75,7 @@ export function createController(deps: ControllerDeps): Controller {
     meaningRoot = null;
     showCard(root.anchor, root.query, { kind: 'result', result: root.result }, root.context);
     overlay.restoreCardScroll(root.scroll);
+    overlay.focusMeaning(root.selectedTitle);
   }
 
   function showCard(
@@ -98,6 +100,7 @@ export function createController(deps: ControllerDeps): Controller {
           meaningRoot = {
             query,
             result: state.result,
+            selectedTitle: title,
             context,
             anchor,
             scroll: overlay.readCardScroll(),

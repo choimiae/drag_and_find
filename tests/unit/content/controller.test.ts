@@ -41,6 +41,7 @@ function fakeOverlay() {
     showCard: vi.fn<Overlay['showCard']>(),
     readCardScroll: vi.fn<Overlay['readCardScroll']>(() => ({ body: 25, meanings: 80 })),
     restoreCardScroll: vi.fn<Overlay['restoreCardScroll']>(),
+    focusMeaning: vi.fn<Overlay['focusMeaning']>(),
     hideCard: vi.fn<Overlay['hideCard']>(),
     contains: vi.fn<Overlay['contains']>(() => false),
     setTheme: vi.fn<Overlay['setTheme']>(),
@@ -370,6 +371,7 @@ describe('context and meanings', () => {
     expect(lastCardState(overlay)).toEqual({ kind: 'result', result: MEANINGS });
     expect(overlay.showCard.mock.calls.at(-1)?.[1]).toBe('온보딩');
     expect(overlay.restoreCardScroll).toHaveBeenCalledWith({ body: 25, meanings: 80 });
+    expect(overlay.focusMeaning).toHaveBeenCalledWith('데이터베이스 트리거');
     expect(requestLookup).toHaveBeenCalledTimes(2);
   });
 

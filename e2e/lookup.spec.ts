@@ -77,6 +77,7 @@ test('뜻 상세에서 원래 뜻 목록과 스크롤 위치로 돌아간다', a
   await expect(role(page, 'title')).toHaveText('다의어');
   await expect(role(page, 'meaning')).toHaveCount(10);
   expect(await role(page, 'meanings').evaluate((element) => element.scrollTop)).toBe(listScroll);
+  await expect(role(page, 'meaning').last()).toBeFocused();
 });
 
 test('위키백과에 없는 단어는 안내 문구와 검색 버튼을 보여 준다', async ({ page }) => {

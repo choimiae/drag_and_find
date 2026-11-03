@@ -224,6 +224,7 @@ function meaningItem(
       : element(doc, 'button', { className: 'card-meaning', role: 'meaning' });
   if (meaning.title !== null) {
     row.setAttribute('type', 'button');
+    row.dataset.meaningTitle = meaning.title;
     row.addEventListener('click', () => onSelect(meaning.title!));
   }
   row.append(
@@ -278,6 +279,7 @@ function meaningButton(
   onSelect: (title: string) => void,
 ): HTMLElement {
   const button = element(doc, 'button', { className: 'card-meaning', role, text: shorten(label) });
+  button.dataset.meaningTitle = title;
   button.setAttribute('type', 'button');
   button.addEventListener('click', () => onSelect(title));
   return button;

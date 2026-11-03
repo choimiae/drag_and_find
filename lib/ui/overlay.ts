@@ -26,6 +26,7 @@ export interface Overlay {
   showCard(anchor: DocumentRect, query: string, state: CardState, handlers: CardHandlers): void;
   readCardScroll(): CardScroll;
   restoreCardScroll(scroll: CardScroll): void;
+  focusMeaning(title: string): void;
   hideCard(): void;
   contains(event: Event): boolean;
   setTheme(theme: ThemeSetting): void;
@@ -121,6 +122,13 @@ export function createOverlay(doc: Document, win: Window): Overlay {
       const meanings = card?.querySelector<HTMLElement>('[data-role="meanings"]');
       if (body) body.scrollTop = scroll.body;
       if (meanings) meanings.scrollTop = scroll.meanings;
+    },
+    focusMeaning(title) {
+      const buttons = card?.querySelectorAll<HTMLButtonElement>('[data-meaning-title]');
+      const target = Array.from(buttons ?? []).find(
+        (button) => button.dataset.meaningTitle === title,
+      );
+      target?.focus({ preventScroll: true });
     },
     hideCard() {
       card?.remove();
