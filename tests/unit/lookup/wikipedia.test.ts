@@ -42,6 +42,35 @@ function provider(fetchFn: FetchFn) {
 }
 
 describe('createWikipediaKoProvider', () => {
+  it('signals a direct-summary miss before the search response arrives', async () => {
+    let finishSearch: ((response: Response) => void) | undefined;
+    const fetchFn = vi.fn<FetchFn>(async (input) =>
+      isSummary(new URL(input))
+        ? notFound()
+        : new Promise<Response>((resolve) => {
+            finishSearch = resolve;
+          }),
+    );
+    const onDirectMiss = vi.fn();
+
+    const pending = provider(fetchFn).lookupWithDirectMiss('SSOT', onDirectMiss);
+    await vi.waitFor(() => expect(onDirectMiss).toHaveBeenCalledTimes(1));
+    expect(finishSearch).toBeDefined();
+    finishSearch?.(searchHits([]));
+    await expect(pending).resolves.toEqual({ status: 'not_found' });
+  });
+
+  it('does not signal a direct-summary miss when the article exists', async () => {
+    const onDirectMiss = vi.fn();
+    const result = await provider(fakeFetch(() => summary('POC'))).lookupWithDirectMiss(
+      'POC',
+      onDirectMiss,
+    );
+
+    expect(result).toMatchObject({ status: 'found', title: 'POC' });
+    expect(onDirectMiss).not.toHaveBeenCalled();
+  });
+
   it('returns the summary of an exactly matching article', async () => {
     const fetchFn = fakeFetch((url) =>
       summaryTitleOf(url) === '온보딩' ? summary('온보딩') : notFound(),

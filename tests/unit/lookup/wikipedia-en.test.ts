@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { withEnglishWikipediaFallback } from '../../../lib/lookup/wikipedia-en';
 import type { LookupProvider, LookupResult } from '../../../lib/lookup/types';
-import type { FetchFn } from '../../../lib/lookup/wikipedia';
+import type { DirectMissLookupProvider, FetchFn } from '../../../lib/lookup/wikipedia';
 
 const FOUND: LookupResult = {
   status: 'found',
@@ -41,6 +41,83 @@ function englishFetch(title?: string): ReturnType<typeof vi.fn<FetchFn>> {
 }
 
 describe('withEnglishWikipediaFallback', () => {
+  it('starts English langlink lookup before the Korean lookup finishes', async () => {
+    let finishKorean: ((result: LookupResult) => void) | undefined;
+    const korean: DirectMissLookupProvider = {
+      lookup: vi.fn(async (query) => {
+        if (query === '경영') return FOUND;
+        throw new Error('use direct-miss hook for original query');
+      }),
+      lookupWithDirectMiss: vi.fn((query, onDirectMiss) => {
+        if (query !== 'Management') return Promise.resolve(FOUND);
+        onDirectMiss();
+        return new Promise<LookupResult>((resolve) => {
+          finishKorean = resolve;
+        });
+      }),
+    };
+    const fetchFn = englishFetch('경영');
+    const provider = withEnglishWikipediaFallback(korean, {
+      userAgent: 'DragAndFind/test',
+      fetchFn,
+    });
+
+    const pending = provider.lookup('Management');
+    expect(fetchFn).toHaveBeenCalledTimes(1);
+    expect(korean.lookupWithDirectMiss).toHaveBeenCalledTimes(1);
+    finishKorean?.({ status: 'not_found' });
+    await expect(pending).resolves.toEqual(FOUND);
+  });
+
+  it('does not start English lookup when the direct Korean article is found', async () => {
+    const fetchFn = englishFetch('경영');
+    const korean: DirectMissLookupProvider = {
+      lookup: vi.fn(async () => {
+        throw new Error('use direct-miss hook');
+      }),
+      lookupWithDirectMiss: vi.fn(async () => FOUND),
+    };
+
+    const result = await withEnglishWikipediaFallback(korean, {
+      userAgent: 'DragAndFind/test',
+      fetchFn,
+    }).lookup('Management');
+
+    expect(result).toEqual(FOUND);
+    expect(fetchFn).not.toHaveBeenCalled();
+  });
+
+  it('aborts unused English lookup when Korean search finds an article', async () => {
+    let englishSignal: AbortSignal | undefined;
+    const fetchFn = vi.fn<FetchFn>(
+      async (_input, init) =>
+        new Promise<Response>((_resolve, reject) => {
+          englishSignal = init?.signal ?? undefined;
+          englishSignal?.addEventListener('abort', () =>
+            reject(new DOMException('Aborted', 'AbortError')),
+          );
+        }),
+    );
+    const korean: DirectMissLookupProvider = {
+      lookup: vi.fn(async () => {
+        throw new Error('use direct-miss hook');
+      }),
+      lookupWithDirectMiss: async (_query, onDirectMiss) => {
+        onDirectMiss();
+        return FOUND;
+      },
+    };
+
+    const result = await withEnglishWikipediaFallback(korean, {
+      userAgent: 'DragAndFind/test',
+      fetchFn,
+    }).lookup('Management');
+
+    expect(result).toEqual(FOUND);
+    expect(fetchFn).toHaveBeenCalledTimes(1);
+    expect(englishSignal?.aborted).toBe(true);
+  });
+
   it('영어 문서의 한국어 연결 문서를 조회한다', async () => {
     const korean = koreanProvider();
     const fetchFn = englishFetch('경영');

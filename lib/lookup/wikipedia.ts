@@ -44,11 +44,15 @@ interface WikipediaOptions {
   fetchFn?: FetchFn;
 }
 
+export interface DirectMissLookupProvider extends LookupProvider {
+  lookupWithDirectMiss(query: string, onDirectMiss: () => void): Promise<LookupResult>;
+}
+
 /** 한국어 위키백과에서 검색어의 요약을 찾는 출처를 만든다. */
 export function createWikipediaKoProvider({
   userAgent,
   fetchFn = (input, init) => fetch(input, init),
-}: WikipediaOptions): LookupProvider {
+}: WikipediaOptions): DirectMissLookupProvider {
   async function requestJson<T>(url: string): Promise<T | null> {
     for (let attempt = 1; ; attempt += 1) {
       try {
@@ -157,9 +161,10 @@ export function createWikipediaKoProvider({
     }
   }
 
-  async function findArticle(query: string): Promise<LookupResult> {
+  async function findArticle(query: string, onDirectMiss: () => void): Promise<LookupResult> {
     const direct = await fetchSummary(query);
     if (direct) return direct;
+    onDirectMiss();
 
     const candidate = await searchTopTitle(query);
 
@@ -170,18 +175,24 @@ export function createWikipediaKoProvider({
     return (await fetchSummary(candidate)) ?? { status: 'not_found' };
   }
 
+  async function lookupWithDirectMiss(
+    query: string,
+    onDirectMiss: () => void,
+  ): Promise<LookupResult> {
+    try {
+      const found = await findArticle(query, onDirectMiss);
+      if (found.status !== 'found' || !found.isDisambiguation) return found;
+      const disambiguation = await fetchDisambiguation(found.title);
+      return disambiguation ? { ...found, disambiguation } : found;
+    } catch (error) {
+      if (error instanceof RateLimitedError) return { status: 'rate_limited' };
+      return { status: 'network_error' };
+    }
+  }
+
   return {
-    async lookup(query) {
-      try {
-        const found = await findArticle(query);
-        if (found.status !== 'found' || !found.isDisambiguation) return found;
-        const disambiguation = await fetchDisambiguation(found.title);
-        return disambiguation ? { ...found, disambiguation } : found;
-      } catch (error) {
-        if (error instanceof RateLimitedError) return { status: 'rate_limited' };
-        return { status: 'network_error' };
-      }
-    },
+    lookup: (query) => lookupWithDirectMiss(query, () => {}),
+    lookupWithDirectMiss,
   };
 }
 
