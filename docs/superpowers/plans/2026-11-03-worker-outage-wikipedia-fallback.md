@@ -4,7 +4,7 @@
 
 **Goal:** Worker 요청 실패나 무료 한도 초과 시 확장이 위키백과 설명을 직접 표시한다.
 
-**Architecture:** 백그라운드의 조회 제공자가 Worker를 우선 호출하고 실패 상태일 때만 기존 위키백과 제공자를 호출한다. 브라우저 요청은 필요한 위키백과 도메인만 허용하며 `Api-User-Agent`로 식별한다.
+**Architecture:** 백그라운드는 Worker 조회 서비스와 직접 위키백과 조회 서비스를 별도로 구성한다. 전환 서비스가 실패 상태일 때만 직접 위키백과 서비스를 호출하므로 장애 난 Worker의 영어 문맥 보강 경로를 재요청하지 않는다. 브라우저 요청은 필요한 위키백과 도메인만 허용하며 `Api-User-Agent`로 식별한다.
 
 **Tech Stack:** TypeScript, WXT Manifest V3, Vitest, Playwright.
 
@@ -14,6 +14,14 @@
 - 직접 조회는 네이버 API와 위키데이터를 호출하지 않는다.
 - 주변 문맥은 외부 API로 보내지 않는다.
 - Worker 요청 제한은 현재 최대 18초이며 실패 후 직접 조회한다.
+
+---
+
+## 코드 검토 후 변경
+
+최초 Task 1의 제공자 단계 전환은 직접 조회 성공 후에도 `createLookupService`가 장애 난 Worker의 `/english-context`를 최대 12초 기다릴 수 있었다. `lib/lookup/fallback-provider.ts`와 해당 테스트를 제거하고 `lib/lookup/fallback-service.ts` 및 `tests/unit/lookup/fallback-service.test.ts`로 대체했다. 백그라운드는 `createLookupService(createWorkerProvider(...), ..., createEnglishContextClient(...))`와 `createLookupService(createBrowserWikipediaProvider())`를 각각 만든 뒤 `createFallbackLookupService(workerLookup, wikipediaLookup)`으로 결합한다. 추가 E2E는 Worker HTTP 429에서 직접 위키백과 결과가 카드에 표시되는지 확인한다.
+
+아래 Task 1과 Task 2의 최초 단계와 커밋은 변경 과정을 기록한 것이다. 현재 구현의 최종 구조는 이 절을 따른다.
 
 ---
 

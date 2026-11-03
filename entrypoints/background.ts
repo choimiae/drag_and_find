@@ -1,7 +1,7 @@
 import { browser } from 'wxt/browser';
 import { defineBackground } from 'wxt/utils/define-background';
 import { createBrowserWikipediaProvider } from '../lib/lookup/browser-wikipedia';
-import { withWorkerFailureFallback } from '../lib/lookup/fallback-provider';
+import { createFallbackLookupService } from '../lib/lookup/fallback-service';
 import { createLookupMessageHandler } from '../lib/lookup/message-handler';
 import { createLookupService } from '../lib/lookup/service';
 import { createEnglishContextClient, createWorkerProvider } from '../lib/lookup/worker-client';
@@ -9,11 +9,14 @@ import { createShortcutHandler } from '../lib/shortcut';
 
 export default defineBackground(() => {
   const workerUrl = import.meta.env.WXT_LOOKUP_API_URL ?? '';
-  const provider = withWorkerFailureFallback(
-    createWorkerProvider(workerUrl),
-    createBrowserWikipediaProvider(),
+  const lookup = createFallbackLookupService(
+    createLookupService(
+      createWorkerProvider(workerUrl),
+      undefined,
+      createEnglishContextClient(workerUrl),
+    ),
+    createLookupService(createBrowserWikipediaProvider()),
   );
-  const lookup = createLookupService(provider, undefined, createEnglishContextClient(workerUrl));
   const handleLookup = createLookupMessageHandler(lookup);
 
   browser.runtime.onMessage.addListener((message, _sender, sendResponse) => {

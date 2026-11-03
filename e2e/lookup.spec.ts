@@ -20,6 +20,32 @@ test('드래그 후 아이콘을 누르면 위키백과 요약 카드가 뜬다'
   );
 });
 
+test('Worker 요청 제한 시 위키백과를 직접 조회해 카드를 보여 준다', async ({ page, context }) => {
+  let wikipediaRequests = 0;
+  await context.route('https://lookup.example.test/lookup**', (route) =>
+    route.fulfill({ status: 429, json: { status: 'rate_limited' } }),
+  );
+  await context.route('https://ko.wikipedia.org/**', (route) => {
+    wikipediaRequests += 1;
+    return route.fulfill({
+      json: {
+        type: 'standard',
+        title: '온보딩',
+        extract: '온보딩은 신입 직원이 조직에 적응하도록 돕는 과정이다.',
+        content_urls: {
+          desktop: { page: 'https://ko.wikipedia.org/wiki/%EC%98%A8%EB%B3%B4%EB%94%A9' },
+        },
+      },
+    });
+  });
+
+  await openArticleAndLookUp(page, 'known');
+
+  await expect(role(page, 'title')).toHaveText('온보딩');
+  await expect(role(page, 'extract')).toContainText('신입 직원');
+  expect(wikipediaRequests).toBe(1);
+});
+
 test('네이버 백과 결과는 네이버 출처와 원문 링크를 보여 준다', async ({ page }) => {
   await openArticleAndLookUp(page, 'naver-known');
   await expect(role(page, 'extract')).toContainText('학습과 추론');
