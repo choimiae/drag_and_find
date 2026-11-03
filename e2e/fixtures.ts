@@ -266,7 +266,7 @@ async function routeFakeNetwork(context: BrowserContext): Promise<void> {
       return route.fulfill({ json: LINKED[title] ?? { query: {} } });
     return route.fulfill({ json: { query: { search: [] } } });
   });
-  // 확장은 Worker만 호출해야 한다. 이 라우트가 실행되면 직접 위키백과 호출을 오류로 만든다.
+  // 정상 Worker 응답을 사용하는 기존 E2E에서는 불필요한 직접 위키백과 호출을 막는다.
   await context.route('https://ko.wikipedia.org/**', (route) => route.abort());
   await context.route('https://www.wikidata.org/wiki/**', (route) =>
     route.fulfill({ contentType: 'text/html', body: '<p>위키데이터 원문</p>' }),

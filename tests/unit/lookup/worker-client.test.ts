@@ -60,8 +60,9 @@ describe('createWorkerProvider', () => {
   });
 
   it('maps Cloudflare quota HTTP 1027 to network_error', async () => {
-    const provider = createWorkerProvider('https://lookup.example.test', async () =>
-      new Response('quota exceeded', { status: 1027 }),
+    const provider = createWorkerProvider(
+      'https://lookup.example.test',
+      async () => new Response('quota exceeded', { status: 1027 }),
     );
     expect(await provider.lookup('고양이')).toEqual({ status: 'network_error' });
   });

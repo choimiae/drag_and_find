@@ -20,7 +20,9 @@ describe('withWorkerFailureFallback', () => {
     'shows Wikipedia for Worker %s',
     async (status) => {
       const wikipedia = provider(wikiFound);
-      const result = await withWorkerFailureFallback(provider({ status }), wikipedia).lookup('고양이');
+      const result = await withWorkerFailureFallback(provider({ status }), wikipedia).lookup(
+        '고양이',
+      );
       expect(result).toEqual(wikiFound);
       expect(wikipedia.lookup).toHaveBeenCalledWith('고양이');
     },
