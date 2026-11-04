@@ -12,6 +12,6 @@ export async function watchSettings(deps: SettingsWatchDeps): Promise<void> {
   try {
     deps.applySettings(await deps.loadSettings());
   } catch {
-    // 확장이 업데이트돼 연결이 끊긴 탭은 설정을 읽지 못한다. 기본값(테마 auto, 검색 사이트 네이버)을 그대로 둔다.
+    // 확장이 업데이트돼 연결이 끊긴 탭은 설정을 읽지 못한다. 기본값(아이콘 표시, 테마 auto)을 그대로 둔다.
   }
 }

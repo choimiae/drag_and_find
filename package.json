@@ -6,8 +6,11 @@
   "type": "module",
   "scripts": {
     "dev": "wxt",
+    "dev:worker": "WXT_LOOKUP_API_URL=https://drag-and-find-lookup.maestro001220.workers.dev wxt",
     "build": "wxt build",
+    "build:dev": "WXT_LOOKUP_API_URL=https://drag-and-find-lookup.maestro001220.workers.dev wxt build",
     "zip": "pnpm worker:check && wxt zip",
+    "zip:store": "WXT_LOOKUP_API_URL=https://drag-and-find-lookup.maestro001220.workers.dev pnpm zip",
     "icons": "node scripts/render-icons.mjs",
     "store:images": "wxt build --mode e2e && node scripts/store-images.mjs",
     "compile": "tsc --noEmit",
@@ -17,6 +20,7 @@
     "test": "vitest run",
     "test:e2e": "wxt build --mode e2e && playwright test",
     "worker:check": "node scripts/check-worker.mjs",
+    "worker:check:live": "WXT_LOOKUP_API_URL=https://drag-and-find-lookup.maestro001220.workers.dev pnpm worker:check",
     "postinstall": "wxt prepare"
   },
   "devDependencies": {

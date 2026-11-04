@@ -191,7 +191,7 @@ export const OVERLAY_CSS = `
 }
 .card-section-title { margin: 11px 0 5px; color: var(--dnf-muted); font-size: 11px; font-weight: 700; }
 .card-basic { margin: 0 0 2px; color: var(--dnf-text-soft); }
-.card-meanings { display: block; max-height: 240px; overflow-y: auto; margin: 0; padding: 0; list-style: none; }
+.card-meanings { display: block; margin: 0; padding: 0; list-style: none; }
 .card-meanings li + li { border-top: 1px solid var(--dnf-divider); }
 .card-meanings .card-meaning, .card-meaning-text {
   display: block;
@@ -211,23 +211,29 @@ export const OVERLAY_CSS = `
 .card-meaning-text .card-meaning-description { color: var(--dnf-muted); }
 .card-meaning-source-link { display: inline-block; margin-top: 3px; color: var(--dnf-accent); font-size: 11px; text-decoration: none; }
 .card-meaning-source-link:hover, .card-meaning-source-link:focus-visible { text-decoration: underline; }
-.card-actions {
-  display: flex;
-  flex: none;
-  align-items: center;
-  gap: 6px;
-  padding: 10px 15px 12px;
-  border-top: 1px solid var(--dnf-divider);
-  background: var(--dnf-surface-alt);
-}
+.card-result-panel { display: flex; flex-direction: column; min-height: 0; flex: 1 1 auto; }
+.card-result-panel[hidden], .card-actions[hidden] { display: none; }
+.card-tabs { display: flex; gap: 16px; flex: none; padding: 0 15px; margin-bottom: 10px; border-bottom: 1px solid var(--dnf-divider); }
+.card-tab { padding: 8px 0; border: 0; border-bottom: 2px solid transparent; background: transparent; color: var(--dnf-muted); cursor: pointer; font: inherit; font-size: 12px; }
+.card-tab[aria-selected='true'] { border-bottom-color: var(--dnf-accent); color: var(--dnf-accent); font-weight: 700; }
+.card-tab:focus-visible { outline: 2px solid var(--dnf-accent); outline-offset: 2px; }
+.card-actions { display: flex; flex-direction: column; gap: 10px; padding: 4px 15px 15px; }
+.card-manual-row { display: flex; gap: 7px; }
+.card-external-label { margin: 4px 0 -4px; padding-top: 9px; border-top: 1px solid var(--dnf-divider); color: var(--dnf-muted); font-size: 11px; }
+.card-external-actions { display: flex; gap: 8px; }
+.card-search-error { margin: 0; color: var(--dnf-text-soft); font-size: 12px; }
+.card-search-error:empty { display: none; }
+.card-lookup { flex: none; width: 76px; padding: 8px 0; background: var(--dnf-accent); color: var(--dnf-surface); border: 0; border-radius: 6px; font: inherit; font-size: 12px; font-weight: 700; white-space: nowrap; cursor: pointer; }
+.card-lookup:focus-visible { outline: 2px solid var(--dnf-accent); outline-offset: 2px; }
 .card-action {
-  flex: none;
-  padding: 6px 11px;
+  flex: 1;
+  min-width: 0;
+  padding: 6px 4px;
   border: 1px solid var(--dnf-border);
   border-radius: 8px;
   background: var(--dnf-button);
   color: var(--dnf-text);
-  font-size: 12px;
+  font-size: 11px;
   text-align: center;
   text-decoration: none;
 }

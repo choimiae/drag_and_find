@@ -1,4 +1,4 @@
-import type { SearchEngine } from './settings';
+export type SearchEngine = 'naver' | 'google';
 
 /** 검색어로 구글 검색 결과 주소를 만든다. */
 export function googleSearchUrl(query: string): string {

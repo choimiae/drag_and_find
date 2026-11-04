@@ -63,11 +63,11 @@ test('네이버 백과 결과는 네이버 출처와 원문 링크를 보여 준
 test('뜻 상세에서 원래 뜻 목록과 스크롤 위치로 돌아간다', async ({ page }) => {
   await openArticleAndLookUp(page, 'many');
   await expect(role(page, 'meaning')).toHaveCount(10);
-  const listScroll = await role(page, 'meanings').evaluate((element) => {
+  const bodyScroll = await role(page, 'body').evaluate((element) => {
     element.scrollTop = element.scrollHeight;
     return element.scrollTop;
   });
-  expect(listScroll).toBeGreaterThan(0);
+  expect(bodyScroll).toBeGreaterThan(0);
 
   await role(page, 'meaning').last().click();
   await expect(role(page, 'title')).toHaveText('뜻 10');
@@ -76,27 +76,31 @@ test('뜻 상세에서 원래 뜻 목록과 스크롤 위치로 돌아간다', a
 
   await expect(role(page, 'title')).toHaveText('다의어');
   await expect(role(page, 'meaning')).toHaveCount(10);
-  expect(await role(page, 'meanings').evaluate((element) => element.scrollTop)).toBe(listScroll);
+  expect(await role(page, 'body').evaluate((element) => element.scrollTop)).toBe(bodyScroll);
   await expect(role(page, 'meaning').last()).toBeFocused();
 });
 
-test('위키백과에 없는 단어는 안내 문구와 검색 버튼을 보여 준다', async ({ page }) => {
+test('위키백과에 없는 단어는 안내 문구와 직접 찾기 탭을 보여 준다', async ({ page }) => {
   await openArticleAndLookUp(page, 'unknown');
 
   await expect(role(page, 'body')).toHaveText('네이버 백과와 위키백과에 결과가 없습니다');
+  await expect(role(page, 'manual-tab')).toBeVisible();
+  await role(page, 'manual-tab').click();
   await expect(role(page, 'google')).toBeVisible();
   await expect(role(page, 'naver')).toBeVisible();
 });
 
-test('구글·네이버 버튼은 선택한 단어로 검색한 새 탭을 연다', async ({ page, context }) => {
+test('구글·네이버 링크는 직접 입력한 단어로 검색한 새 탭을 연다', async ({ page, context }) => {
   await openArticleAndLookUp(page, 'known');
+  await role(page, 'manual-tab').click();
+  await role(page, 'search-input').fill('챗GPT 뜻');
 
   const [google] = await Promise.all([context.waitForEvent('page'), role(page, 'google').click()]);
-  await expect(google).toHaveURL('https://www.google.com/search?q=%EC%98%A8%EB%B3%B4%EB%94%A9');
+  await expect(google).toHaveURL('https://www.google.com/search?q=%EC%B1%97GPT%20%EB%9C%BB');
 
   const [naver] = await Promise.all([context.waitForEvent('page'), role(page, 'naver').click()]);
   await expect(naver).toHaveURL(
-    'https://search.naver.com/search.naver?query=%EC%98%A8%EB%B3%B4%EB%94%A9',
+    'https://search.naver.com/search.naver?query=%EC%B1%97GPT%20%EB%9C%BB',
   );
 });
 
@@ -193,34 +197,74 @@ test('이름이 같은 위키데이터 뜻은 각자의 원문을 연다', async
   await expect(second).toHaveURL('https://www.wikidata.org/wiki/Q202');
 });
 
-test('긴 뜻 목록은 마지막 항목까지 스크롤하고 출처와 검색 줄은 보인다', async ({ page }) => {
+test('긴 뜻 목록은 본문 한 곳에서만 스크롤하고 출처와 헤더 탭은 보인다', async ({ page }) => {
   await openArticleAndLookUp(page, 'many');
 
   const list = role(page, 'meanings');
   await expect(role(page, 'meaning')).toHaveCount(10);
-  await list.evaluate((element) => {
+  expect(
+    await list.evaluate((element) => {
+      element.scrollTop = element.scrollHeight;
+      return element.scrollTop;
+    }),
+  ).toBe(0);
+  const body = role(page, 'body');
+  await body.evaluate((element) => {
     element.scrollTop = element.scrollHeight;
   });
-  expect(await list.evaluate((element) => element.scrollTop)).toBeGreaterThan(0);
+  expect(await body.evaluate((element) => element.scrollTop)).toBeGreaterThan(0);
   await expect(role(page, 'meaning').last()).toBeVisible();
   await expect(role(page, 'title')).toHaveText('다의어');
   await expect(role(page, 'wiki-link')).toBeVisible();
   await expect(role(page, 'attribution')).toContainText('위키백과 설명 일부');
-  await expect(role(page, 'search-input')).toBeVisible();
+  await expect(role(page, 'manual-tab')).toBeVisible();
 
   await role(page, 'meaning').last().click();
   await expect(role(page, 'title')).toHaveText('뜻 10');
   await expect(role(page, 'extract')).toContainText('열 번째 뜻');
 });
 
-test('좁은 화면에서도 출처와 검색 줄은 카드에 고정된다', async ({ page }) => {
+test('좁은 화면에서도 출처와 헤더 탭은 카드에 보인다', async ({ page }) => {
   await page.setViewportSize({ width: 375, height: 320 });
   await openArticleAndLookUp(page, 'many');
 
   await expect(role(page, 'meaning')).toHaveCount(10);
   await expect(role(page, 'wiki-link')).toBeInViewport();
   await expect(role(page, 'attribution')).toBeInViewport();
+  await expect(role(page, 'manual-tab')).toBeInViewport();
+});
+
+test('좁은 화면에서 직접 찾기로 전환해도 조회 버튼이 보인다', async ({ page }) => {
+  await page.setViewportSize({ width: 375, height: 320 });
+  await openArticleAndLookUp(page, 'known');
+  await role(page, 'manual-tab').click();
+
   await expect(role(page, 'search-input')).toBeInViewport();
+  await expect(role(page, 'lookup-action')).toBeInViewport();
+  await expect(role(page, 'google')).toBeInViewport();
+  await expect(role(page, 'naver')).toBeInViewport();
+});
+
+test('짧은 결과에서 직접 찾기로 전환해도 하단 검색 링크가 잘리지 않는다', async ({ page }) => {
+  await page.setViewportSize({ width: 375, height: 320 });
+  await openArticleAndLookUp(page, 'unknown');
+  await role(page, 'manual-tab').click();
+
+  await expect(role(page, 'lookup-action')).toBeInViewport();
+  await expect(role(page, 'google')).toBeInViewport();
+  await expect(role(page, 'naver')).toBeInViewport();
+});
+
+test('직접 찾기 입력 오류가 나타나도 하단 검색 링크가 잘리지 않는다', async ({ page }) => {
+  await page.setViewportSize({ width: 375, height: 320 });
+  await openArticleAndLookUp(page, 'unknown');
+  await role(page, 'manual-tab').click();
+  await role(page, 'search-input').fill('가'.repeat(51));
+  await role(page, 'lookup-action').click();
+
+  await expect(role(page, 'search-error')).toContainText('50자');
+  await expect(role(page, 'google')).toBeInViewport();
+  await expect(role(page, 'naver')).toBeInViewport();
 });
 
 test('문맥상 뜻을 누르면 그 뜻의 요약으로 카드가 바뀐다', async ({ page }) => {
@@ -277,51 +321,28 @@ test('설정에서 어둡게를 고르면 이미 열린 탭의 카드도 바로 
   await expect(page.locator('drag-and-find-root')).toHaveAttribute('data-theme', 'dark');
 });
 
-test('검색어를 고친 뒤 Enter를 누르면 네이버에서 고친 말로 검색한다', async ({ page, context }) => {
-  await openArticleAndLookUp(page, 'unknown');
+test('직접 찾기에서 Enter를 누르면 고친 단어의 뜻을 카드에서 찾는다', async ({ page, context }) => {
+  await openArticleAndLookUp(page, 'known');
+  await role(page, 'manual-tab').click();
 
-  await role(page, 'search-input').fill('챗GPT 뜻');
-  const [naver] = await Promise.all([
-    context.waitForEvent('page'),
-    role(page, 'search-input').press('Enter'),
-  ]);
+  await role(page, 'search-input').fill('인공지능');
+  const before = context.pages().length;
+  await role(page, 'search-input').press('Enter');
 
-  await expect(naver).toHaveURL(
-    'https://search.naver.com/search.naver?query=%EC%B1%97GPT%20%EB%9C%BB',
-  );
+  await expect(role(page, 'title')).toHaveText('인공지능');
+  await expect(role(page, 'extract')).toContainText('학습과 추론');
+  await expect(role(page, 'result-tab')).toHaveAttribute('aria-selected', 'true');
+  expect(context.pages()).toHaveLength(before);
 });
 
-test('설정에서 구글을 고르면 이미 떠 있는 카드에서도 Enter로 구글에서 검색한다', async ({
-  page,
-  context,
-  extensionId,
-  serviceWorker,
-}) => {
-  await openArticleAndLookUp(page, 'unknown');
-  await expect(role(page, 'card')).toBeVisible();
-
-  const options = await context.newPage();
-  await options.goto(`chrome-extension://${extensionId}/options.html`);
-  await options.locator('label[for="search-engine-google"]').click();
-  await expect
-    .poll(() =>
-      serviceWorker.evaluate(
-        `chrome.storage.local.get('settings').then((stored) => stored.settings?.searchEngine)`,
-      ),
-    )
-    .toBe('google');
-
-  await page.bringToFront();
-  const [google] = await Promise.all([
-    context.waitForEvent('page'),
-    role(page, 'search-input').press('Enter'),
-  ]);
-
-  await expect(google).toHaveURL(/^https:\/\/www\.google\.com\/search\?q=/);
+test('옵션 화면에는 Enter 검색 사이트 설정이 없다', async ({ page, extensionId }) => {
+  await page.goto(`chrome-extension://${extensionId}/options.html`);
+  await expect(page.locator('#search-engine')).toHaveCount(0);
 });
 
 test('검색어 칸에 글자를 쳐도 페이지 단축키가 실행되지 않는다', async ({ page }) => {
   await openArticleAndLookUp(page, 'unknown');
+  await role(page, 'manual-tab').click();
 
   await page.evaluate(() => {
     const counter = window as unknown as { keyCount: number };
@@ -342,6 +363,7 @@ test('검색어 칸에 글자를 쳐도 페이지 단축키가 실행되지 않�
 
 test('검색어 칸 안에서 글을 끌어 선택해도 그 글로 아이콘이 뜨지 않는다', async ({ page }) => {
   await openArticleAndLookUp(page, 'unknown');
+  await role(page, 'manual-tab').click();
   const box = await role(page, 'search-input').boundingBox();
   if (!box) throw new Error('검색어 칸을 찾지 못했습니다');
 
@@ -361,6 +383,7 @@ test('검색어 칸에서 글을 고른 채 단축키를 눌러도 새로 찾지
 }) => {
   await openArticleAndLookUp(page, 'unknown');
   await expect(role(page, 'title')).toHaveText('갓생');
+  await role(page, 'manual-tab').click();
   await role(page, 'search-input').fill('다른 말');
   await role(page, 'search-input').selectText();
 

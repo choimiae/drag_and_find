@@ -6,7 +6,7 @@ const handlers = () => ({
   onClose: vi.fn(),
   onRetry: vi.fn(),
   onSelectMeaning: vi.fn(),
-  getSearchEngine: () => 'naver' as const,
+  onLookup: vi.fn(),
 });
 
 beforeEach(() => {

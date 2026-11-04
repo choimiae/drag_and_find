@@ -8,7 +8,6 @@ function deps(overrides: Partial<SettingsWatchDeps> = {}) {
     loadSettings: vi.fn<SettingsWatchDeps['loadSettings']>(async () => ({
       showIcon: true,
       theme: 'light',
-      searchEngine: 'naver',
     })),
     onSettingsChanged: vi.fn<SettingsWatchDeps['onSettingsChanged']>((l) => {
       listener = l;
@@ -28,7 +27,6 @@ describe('watchSettings', () => {
     expect(d.applySettings).toHaveBeenCalledWith({
       showIcon: true,
       theme: 'light',
-      searchEngine: 'naver',
     });
   });
 
@@ -41,17 +39,19 @@ describe('watchSettings', () => {
     expect(d.applySettings).toHaveBeenLastCalledWith({
       showIcon: true,
       theme: 'dark',
-      searchEngine: 'naver',
     });
   });
 
-  it('passes a changed search engine right away', async () => {
+  it('이전 검색 사이트 설정은 변경을 적용할 때 무시한다', async () => {
     const d = deps();
     await watchSettings(d);
 
     d.change({ showIcon: true, theme: 'auto', searchEngine: 'google' });
 
-    expect(vi.mocked(d.applySettings).mock.lastCall?.[0].searchEngine).toBe('google');
+    expect(vi.mocked(d.applySettings).mock.lastCall?.[0]).toEqual({
+      showIcon: true,
+      theme: 'auto',
+    });
   });
 
   it('uses defaults for a malformed change', async () => {

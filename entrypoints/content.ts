@@ -4,7 +4,7 @@ import { createController } from '../lib/content/controller';
 import { createLookupClient } from '../lib/lookup/client';
 import { isTriggerRequest } from '../lib/messages';
 import { watchSettings } from '../lib/content/settings-watch';
-import { DEFAULT_SETTINGS, SETTINGS_KEY, loadSettings, type SearchEngine } from '../lib/settings';
+import { SETTINGS_KEY, loadSettings } from '../lib/settings';
 import { createOverlay } from '../lib/ui/overlay';
 
 export default defineContentScript({
@@ -12,14 +12,11 @@ export default defineContentScript({
   allFrames: true,
   main() {
     const overlay = createOverlay(document, window);
-    // 설정을 읽지 못하면(확장 업데이트로 연결이 끊긴 탭) 기본값이 그대로 남는다.
-    let searchEngine: SearchEngine = DEFAULT_SETTINGS.searchEngine;
     const controller = createController({
       win: window,
       overlay,
       requestLookup: createLookupClient((message) => browser.runtime.sendMessage(message)),
       isIconEnabled: async () => (await loadSettings(browser.storage.local)).showIcon,
-      getSearchEngine: () => searchEngine,
     });
 
     void watchSettings({
@@ -31,7 +28,6 @@ export default defineContentScript({
         }),
       applySettings: (settings) => {
         overlay.setTheme(settings.theme);
-        searchEngine = settings.searchEngine;
       },
     });
 

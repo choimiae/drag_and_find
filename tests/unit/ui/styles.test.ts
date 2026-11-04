@@ -22,11 +22,6 @@ describe('OVERLAY_CSS', () => {
     expect(OVERLAY_CSS).toContain('--dnf-scrollbar: #4a5360');
   });
 
-  it('뜻 목록은 높이를 제한하고 그 안에서 세로로 스크롤한다', () => {
-    expect(OVERLAY_CSS).toMatch(/\.card-meanings \{[^}]*max-height: \d+px/);
-    expect(OVERLAY_CSS).toMatch(/\.card-meanings \{[^}]*overflow-y: auto/);
-  });
-
   it('표준 스크롤바 속성은 쓰지 않는다 (웹킷 꾸밈을 덮어쓰기 때문)', () => {
     expect(OVERLAY_CSS).not.toContain('scrollbar-color');
     expect(OVERLAY_CSS).not.toContain('scrollbar-width');

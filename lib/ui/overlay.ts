@@ -1,5 +1,11 @@
 import { renderCard, type CardHandlers, type CardState } from './card';
-import { computeCardPlacement, computeIconPosition, type Rect, type Viewport } from './position';
+import {
+  computeCardPlacement,
+  computeIconPosition,
+  VIEWPORT_MARGIN,
+  type Rect,
+  type Viewport,
+} from './position';
 import { DEFAULT_SETTINGS, type ThemeSetting } from '../settings';
 import { OVERLAY_CSS } from './styles';
 
@@ -51,6 +57,7 @@ export function createOverlay(doc: Document, win: Window): Overlay {
 
   let icon: HTMLElement | null = null;
   let card: HTMLElement | null = null;
+  let cardAnchor: DocumentRect | null = null;
 
   const viewport = (): Viewport => ({
     width: win.innerWidth,
@@ -74,6 +81,30 @@ export function createOverlay(doc: Document, win: Window): Overlay {
   const place = (target: HTMLElement, top: number, left: number) => {
     target.style.top = `${top}px`;
     target.style.left = `${left}px`;
+  };
+
+  const positionCard = () => {
+    if (!card || !cardAnchor) return;
+    card.style.maxHeight = '';
+    const size = { width: card.offsetWidth, height: card.offsetHeight };
+    const placement = computeCardPlacement(toViewportRect(cardAnchor), size, viewport());
+    const manual = card.querySelector<HTMLElement>('[data-role="manual-panel"]');
+    const manualOpen = Boolean(manual && !manual.hidden);
+    const height = Math.min(
+      manualOpen ? size.height : placement.maxHeight,
+      Math.max(0, win.innerHeight - VIEWPORT_MARGIN * 2),
+    );
+    if (manualOpen || height < placement.maxHeight) {
+      const top = Math.max(
+        VIEWPORT_MARGIN,
+        Math.min(placement.top - win.scrollY, win.innerHeight - VIEWPORT_MARGIN - height),
+      );
+      place(card, top + win.scrollY, placement.left);
+      card.style.maxHeight = `${height}px`;
+      return;
+    }
+    place(card, placement.top, placement.left);
+    card.style.maxHeight = `${placement.maxHeight}px`;
   };
 
   return {
@@ -102,14 +133,12 @@ export function createOverlay(doc: Document, win: Window): Overlay {
         card = doc.createElement('section');
         card.className = 'card';
         card.dataset.role = 'card';
+        card.addEventListener('drag-and-find-view-change', positionCard);
         shadow.append(card);
       }
+      cardAnchor = anchor;
       renderCard(card, query, state, handlers);
-      card.style.maxHeight = '';
-      const size = { width: card.offsetWidth, height: card.offsetHeight };
-      const placement = computeCardPlacement(toViewportRect(anchor), size, viewport());
-      place(card, placement.top, placement.left);
-      card.style.maxHeight = `${placement.maxHeight}px`;
+      positionCard();
     },
     readCardScroll() {
       return {
@@ -133,6 +162,7 @@ export function createOverlay(doc: Document, win: Window): Overlay {
     hideCard() {
       card?.remove();
       card = null;
+      cardAnchor = null;
     },
     contains(event) {
       return event.composedPath().includes(host);

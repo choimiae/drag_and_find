@@ -9,10 +9,6 @@ const MARKUP = `
     <input type="radio" name="theme" value="light" id="theme-light" />
     <input type="radio" name="theme" value="dark" id="theme-dark" />
   </fieldset>
-  <fieldset id="search-engine">
-    <input type="radio" name="search-engine" value="naver" id="search-engine-naver" />
-    <input type="radio" name="search-engine" value="google" id="search-engine-google" />
-  </fieldset>
   <input id="show-icon" type="checkbox" role="switch" />
   <span id="shortcut"></span>
   <button id="change-shortcut" type="button"></button>`;
@@ -36,7 +32,7 @@ beforeEach(() => {
 describe('initOptionsPage', () => {
   it('shows the stored icon setting', async () => {
     const area = memoryArea();
-    await saveSettings(area, { showIcon: false, theme: 'auto', searchEngine: 'naver' });
+    await saveSettings(area, { showIcon: false, theme: 'auto' });
 
     await initOptionsPage(document, deps({ area }));
 
@@ -54,7 +50,6 @@ describe('initOptionsPage', () => {
     expect(await loadSettings(area)).toEqual({
       showIcon: false,
       theme: 'auto',
-      searchEngine: 'naver',
     });
   });
 
@@ -112,7 +107,6 @@ describe('initOptionsPage', () => {
     expect(await loadSettings(stored)).toEqual({
       showIcon: false,
       theme: 'auto',
-      searchEngine: 'naver',
     });
   });
 
@@ -147,7 +141,6 @@ describe('initOptionsPage', () => {
     expect(await loadSettings(area)).toEqual({
       showIcon: true,
       theme: 'auto',
-      searchEngine: 'naver',
     });
   });
 
@@ -173,7 +166,7 @@ describe('theme', () => {
 
   it('shows the stored theme', async () => {
     const area = memoryArea();
-    await saveSettings(area, { showIcon: true, theme: 'dark', searchEngine: 'naver' });
+    await saveSettings(area, { showIcon: true, theme: 'dark' });
 
     await initOptionsPage(document, deps({ area }));
 
@@ -182,7 +175,7 @@ describe('theme', () => {
 
   it('saves the chosen theme and keeps the icon setting', async () => {
     const area = memoryArea();
-    await saveSettings(area, { showIcon: false, theme: 'auto', searchEngine: 'naver' });
+    await saveSettings(area, { showIcon: false, theme: 'auto' });
     await initOptionsPage(document, deps({ area }));
 
     choose('light');
@@ -191,13 +184,12 @@ describe('theme', () => {
     expect(await loadSettings(area)).toEqual({
       showIcon: false,
       theme: 'light',
-      searchEngine: 'naver',
     });
   });
 
   it('puts the previous theme back when saving fails', async () => {
     const area = memoryArea();
-    await saveSettings(area, { showIcon: true, theme: 'light', searchEngine: 'naver' });
+    await saveSettings(area, { showIcon: true, theme: 'light' });
     const failing = { ...area, set: async () => Promise.reject(new Error('quota')) };
     await initOptionsPage(document, deps({ area: failing }));
 
@@ -215,55 +207,16 @@ describe('theme', () => {
   });
 });
 
-describe('search engine', () => {
-  const engine = (name: string) =>
-    document.getElementById(`search-engine-${name}`) as HTMLInputElement;
+it('검색 사이트 설정 없이 이전 저장값을 읽고 아이콘 변경을 저장한다', async () => {
+  const area = memoryArea();
+  await area.set({ settings: { showIcon: true, theme: 'dark', searchEngine: 'google' } });
 
-  it('checks naver when nothing is stored', async () => {
-    await initOptionsPage(document, deps());
+  await initOptionsPage(document, deps({ area }));
+  checkbox().checked = false;
+  checkbox().dispatchEvent(new Event('change'));
+  await flush();
 
-    expect(engine('naver').checked).toBe(true);
-    expect(engine('google').checked).toBe(false);
-  });
-
-  it('shows the stored search engine', async () => {
-    const area = memoryArea();
-    await saveSettings(area, { showIcon: true, theme: 'auto', searchEngine: 'google' });
-
-    await initOptionsPage(document, deps({ area }));
-
-    expect(engine('google').checked).toBe(true);
-  });
-
-  it('saves the chosen search engine and keeps other settings', async () => {
-    const area = memoryArea();
-    await saveSettings(area, { showIcon: false, theme: 'dark', searchEngine: 'naver' });
-    await initOptionsPage(document, deps({ area }));
-
-    engine('google').checked = true;
-    engine('google').dispatchEvent(new Event('change'));
-    await flush();
-
-    expect(await loadSettings(area)).toEqual({
-      showIcon: false,
-      theme: 'dark',
-      searchEngine: 'google',
-    });
-  });
-
-  it('puts the previous search engine back when saving fails', async () => {
-    const area = memoryArea();
-    await saveSettings(area, { showIcon: true, theme: 'auto', searchEngine: 'naver' });
-    const failing = { ...area, set: async () => Promise.reject(new Error('quota')) };
-    await initOptionsPage(document, deps({ area: failing }));
-
-    engine('google').checked = true;
-    engine('google').dispatchEvent(new Event('change'));
-    await flush();
-
-    expect(engine('naver').checked).toBe(true);
-    expect(engine('google').checked).toBe(false);
-  });
+  expect(await area.get('settings')).toEqual({ settings: { showIcon: false, theme: 'dark' } });
 });
 
 it('exposes the icon toggle as a switch', async () => {
@@ -294,7 +247,6 @@ describe('overlapping changes', () => {
     expect(await loadSettings(area)).toEqual({
       showIcon: false,
       theme: 'dark',
-      searchEngine: 'naver',
     });
   });
 
@@ -320,13 +272,12 @@ describe('overlapping changes', () => {
     expect(await loadSettings(stored)).toEqual({
       showIcon: false,
       theme: 'dark',
-      searchEngine: 'naver',
     });
   });
 
   it('keeps a change made before loading finishes', async () => {
     const stored = memoryArea();
-    await saveSettings(stored, { showIcon: true, theme: 'light', searchEngine: 'naver' });
+    await saveSettings(stored, { showIcon: true, theme: 'light' });
     let release: () => void = () => undefined;
     const gate = new Promise<void>((resolve) => {
       release = resolve;
@@ -349,7 +300,6 @@ describe('overlapping changes', () => {
     expect(await loadSettings(stored)).toEqual({
       showIcon: false,
       theme: 'auto',
-      searchEngine: 'naver',
     });
   });
 });

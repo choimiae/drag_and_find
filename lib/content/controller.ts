@@ -1,4 +1,4 @@
-import { DEFAULT_SETTINGS, type SearchEngine } from '../settings';
+import { DEFAULT_SETTINGS } from '../settings';
 import type { LookupResult } from '../lookup/types';
 import { contextAroundRange } from './context';
 import { checkSelection, isInEditableContext } from '../selection';
@@ -10,7 +10,6 @@ export interface ControllerDeps {
   overlay: Overlay;
   requestLookup(query: string, context?: string): Promise<LookupResult>;
   isIconEnabled(): Promise<boolean>;
-  getSearchEngine(): SearchEngine;
 }
 
 export interface Controller {
@@ -88,6 +87,7 @@ export function createController(deps: ControllerDeps): Controller {
     overlay.showCard(anchor, query, state, {
       onClose: closeAll,
       onRetry: () => void lookUp(query, anchor, context, isMeaningDetail),
+      onLookup: (word) => void lookUp(word, anchor),
       // 다른 뜻은 제목 그대로 찾으므로 문맥으로 다시 고를 필요가 없다.
       onSelectMeaning: (title) => {
         if (
@@ -109,7 +109,6 @@ export function createController(deps: ControllerDeps): Controller {
         void lookUp(title, anchor, undefined, true);
       },
       onBackToMeanings: isMeaningDetail && meaningRoot ? backToMeanings : undefined,
-      getSearchEngine: deps.getSearchEngine,
     });
   }
 

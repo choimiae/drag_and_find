@@ -2,7 +2,6 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderCard, type CardHandlers, type CardState } from '../../../lib/ui/card';
 import type { FoundResult } from '../../../lib/lookup/types';
 import { searchUrl } from '../../../lib/search-urls';
-import type { SearchEngine } from '../../../lib/settings';
 
 let card: HTMLElement;
 let handlers: CardHandlers;
@@ -41,7 +40,7 @@ beforeEach(() => {
     onClose: vi.fn(),
     onRetry: vi.fn(),
     onSelectMeaning: vi.fn(),
-    getSearchEngine: () => 'naver',
+    onLookup: vi.fn(),
   };
 });
 
@@ -693,15 +692,13 @@ describe('design details', () => {
       part('search-input')!.dispatchEvent(event);
       return event;
     };
-    const withEngine = (engine: SearchEngine) => {
-      handlers = { ...handlers, getSearchEngine: () => engine };
-    };
-
-    it('shows search buttons as plain names without logo marks', () => {
+    it('shows a compact lookup button beside the input and text-only external links', () => {
       renderCard(card, '온보딩', { kind: 'loading' }, handlers);
 
-      expect(part('google')?.textContent).toBe('구글');
-      expect(part('naver')?.textContent).toBe('네이버');
+      expect(part('lookup-action')?.textContent).toBe('뜻 찾기');
+      expect(part('lookup-action')?.parentElement).toBe(part('search-input')?.parentElement);
+      expect(part('google')?.textContent).toBe('구글에서 찾기 ↗');
+      expect(part('naver')?.textContent).toBe('네이버에서 찾기 ↗');
       expect(part('google')?.getAttribute('aria-label')).toBe('구글 검색');
       expect(part('naver')?.getAttribute('aria-label')).toBe('네이버 검색');
       expect(part('google')?.getAttribute('title')).toBe('구글 검색');
@@ -748,17 +745,111 @@ describe('design details', () => {
       }
     });
 
-    it('opens the chosen engine on Enter', () => {
-      withEngine('google');
+    it('Enter와 버튼은 공백을 제거한 검색어를 카드에서 조회한다', () => {
       renderCard(card, '온보딩', { kind: 'loading' }, handlers);
+      part('manual-tab')!.click();
+      typeInto('  데이터베이스  ');
       const google = vi.spyOn(part('google')!, 'click');
-      const naver = vi.spyOn(part('naver')!, 'click');
+      expect(enter().defaultPrevented).toBe(true);
+      expect(handlers.onLookup).toHaveBeenCalledWith('데이터베이스');
+      expect(part('result-panel')!.hidden).toBe(false);
+      expect(google).not.toHaveBeenCalled();
+      part('manual-tab')!.click();
+      part('lookup-action')!.click();
+      expect(handlers.onLookup).toHaveBeenCalledTimes(2);
+    });
 
-      const event = enter();
+    it('탭 전환은 입력과 뜻 보기 본문 스크롤을 보존하고 입력에 자동 포커스하지 않는다', () => {
+      document.body.append(card);
+      renderCard(card, '트리거', disambiguation(), handlers);
+      const body = part('body')!;
+      body.scrollTop = 80;
+      expect(part('manual-panel')!.hidden).toBe(true);
+      part('manual-tab')!.click();
+      const input = part('search-input') as HTMLInputElement;
+      expect(document.activeElement).not.toBe(input);
+      typeInto('검색 엔진');
+      input.setSelectionRange(2, 2);
+      part('result-tab')!.click();
+      part('manual-tab')!.click();
+      expect(part('result-panel')!.hidden).toBe(true);
+      expect(input.value).toBe('검색 엔진');
+      expect(input.selectionStart).toBe(2);
+      expect(body.scrollTop).toBe(80);
+      card.remove();
+    });
 
-      expect(google).toHaveBeenCalledTimes(1);
-      expect(naver).not.toHaveBeenCalled();
-      expect(event.defaultPrevented).toBe(true);
+    it('방향키와 Home End로 탭을 이동하고 선택된 탭만 Tab 순서에 둔다', () => {
+      document.body.append(card);
+      renderCard(card, '온보딩', { kind: 'loading' }, handlers);
+      const result = part('result-tab')!;
+      const manual = part('manual-tab')!;
+      expect(result.tabIndex).toBe(0);
+      expect(manual.tabIndex).toBe(-1);
+      for (const [from, key, to] of [
+        [result, 'ArrowRight', manual],
+        [manual, 'Home', result],
+        [result, 'End', manual],
+        [manual, 'ArrowLeft', result],
+      ] as const) {
+        from.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true }));
+        expect(document.activeElement).toBe(to);
+        expect(to.getAttribute('aria-selected')).toBe('true');
+        expect(to.tabIndex).toBe(0);
+        expect(from.tabIndex).toBe(-1);
+      }
+      card.remove();
+    });
+
+    it('직접 조회로 검색어가 바뀌고 결과가 갱신되어도 뜻 보기 탭에 포커스를 둔다', () => {
+      document.body.append(card);
+      handlers.onLookup = (query) => renderCard(card, query, { kind: 'loading' }, handlers);
+      renderCard(card, '온보딩', { kind: 'loading' }, handlers);
+      part('manual-tab')!.click();
+      typeInto('데이터베이스');
+      part('search-input')!.focus();
+      enter();
+      expect(document.activeElement).toBe(part('result-tab'));
+      renderCard(
+        card,
+        '데이터베이스',
+        { kind: 'result', result: { status: 'not_found' } },
+        handlers,
+      );
+      expect(document.activeElement).toBe(part('result-tab'));
+      card.remove();
+    });
+
+    it('Shadow DOM 안에서도 직접 조회 뒤 결과 탭의 포커스를 유지한다', () => {
+      const host = document.createElement('div');
+      const shadow = host.attachShadow({ mode: 'open' });
+      shadow.append(card);
+      document.body.append(host);
+      handlers.onLookup = (query) => renderCard(card, query, { kind: 'loading' }, handlers);
+      renderCard(card, '온보딩', { kind: 'loading' }, handlers);
+      part('manual-tab')!.click();
+      typeInto('데이터베이스');
+      part('search-input')!.focus();
+
+      enter();
+
+      expect(shadow.activeElement).toBe(part('result-tab'));
+      host.remove();
+    });
+
+    it('빈 값과 51자는 오류를 표시하고 50자 유니코드 검색어는 조회한다', () => {
+      renderCard(card, '온보딩', { kind: 'loading' }, handlers);
+      part('manual-tab')!.click();
+      for (const value of ['', '가'.repeat(51)]) {
+        typeInto(value);
+        enter();
+        expect(part('search-error')!.textContent).not.toBe('');
+        expect(part('manual-panel')!.hidden).toBe(false);
+      }
+      expect(handlers.onLookup).not.toHaveBeenCalled();
+      typeInto('😀'.repeat(50));
+      enter();
+      expect(handlers.onLookup).toHaveBeenCalledWith('😀'.repeat(50));
     });
 
     it('ignores Enter while composing Korean', () => {
@@ -771,6 +862,7 @@ describe('design details', () => {
       part('search-input')!.dispatchEvent(legacy);
 
       expect(naver).not.toHaveBeenCalled();
+      expect(handlers.onLookup).not.toHaveBeenCalled();
     });
 
     it('does nothing on Enter when the search input is blank', () => {
@@ -781,6 +873,7 @@ describe('design details', () => {
       enter();
 
       expect(naver).not.toHaveBeenCalled();
+      expect(handlers.onLookup).not.toHaveBeenCalled();
     });
 
     it('keeps key events inside the search input', () => {

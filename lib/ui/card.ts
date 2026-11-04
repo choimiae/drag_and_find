@@ -5,15 +5,16 @@ import type {
   Meaning,
   SenseCandidate,
 } from '../lookup/types';
-import { searchUrl } from '../search-urls';
+import { searchUrl, type SearchEngine } from '../search-urls';
 import { MAX_QUERY_LENGTH } from '../selection';
-import type { SearchEngine } from '../settings';
 
 export type CardState =
   { kind: 'loading' } | { kind: 'result'; result: LookupResult } | { kind: 'too_long' };
 
 const MAX_LABEL_LENGTH = 40;
 const LICENSE_URL = 'https://creativecommons.org/licenses/by-sa/4.0/deed.ko';
+const cardHandlers = new WeakMap<HTMLElement, CardHandlers>();
+
 const CC0_URL = 'https://creativecommons.org/publicdomain/zero/1.0/deed.ko';
 
 export interface CardHandlers {
@@ -21,8 +22,7 @@ export interface CardHandlers {
   onRetry(): void;
   onSelectMeaning(title: string): void;
   onBackToMeanings?(): void;
-  /** Enter를 누른 순간 바로 읽어야 하므로 동기 함수다 (새 탭이 팝업 차단에 걸리지 않게). */
-  getSearchEngine(): SearchEngine;
+  onLookup(query: string): void;
 }
 
 interface ElementOptions {
@@ -38,7 +38,11 @@ export function renderCard(
   state: CardState,
   handlers: CardHandlers,
 ): void {
+  cardHandlers.set(card, handlers);
   const doc = card.ownerDocument;
+  const focusResult =
+    (card.getRootNode() as Document | ShadowRoot).activeElement ===
+    card.querySelector('[data-role="result-tab"]');
   const title = titleFor(query, state);
   const header = buildHeader(
     doc,
@@ -62,23 +66,80 @@ export function renderCard(
   if (pinnedSource && sourceResult) {
     pinnedSource.append(sourceLinksRow(doc, sourceResult), attribution(doc, sourceResult));
   }
-  const keptFooter = state.kind === 'too_long' ? undefined : sameQueryFooter(card, query);
-  if (keptFooter) {
-    // 입력칸을 문서에 둔 채로 위아래만 바꿔야 한글 조합·실행 취소 기록·포커스가 끊기지 않는다.
-    for (const child of Array.from(card.children)) if (child !== keptFooter) child.remove();
-    keptFooter.before(header, body, ...(pinnedSource ? [pinnedSource] : []));
+  const existing = card.querySelector<HTMLElement>('[data-role="manual-panel"]');
+  if (state.kind !== 'too_long' && existing?.dataset.query === query) {
+    card.querySelector('header')?.replaceWith(header);
+    card
+      .querySelector('[data-role="result-panel"]')!
+      .replaceChildren(body, ...(pinnedSource ? [pinnedSource] : []));
     return;
   }
-  const actions =
-    state.kind === 'too_long' ? [] : [buildActions(doc, query, handlers.getSearchEngine)];
-  card.replaceChildren(header, body, ...(pinnedSource ? [pinnedSource] : []), ...actions);
+  if (state.kind === 'too_long') {
+    card.replaceChildren(header, body);
+    return;
+  }
+  const resultPanel = element(doc, 'div', { className: 'card-result-panel', role: 'result-panel' });
+  resultPanel.append(body, ...(pinnedSource ? [pinnedSource] : []));
+  const tabs = buildTabs(doc, card);
+  const manualPanel = buildActions(doc, card, query);
+  for (const [view, panel] of [
+    ['result', resultPanel],
+    ['manual', manualPanel],
+  ] as const) {
+    panel.id = `dnf-${view}-panel`;
+    panel.setAttribute('role', 'tabpanel');
+    panel.setAttribute('aria-labelledby', `dnf-${view}-tab`);
+  }
+  card.replaceChildren(header, tabs, resultPanel, manualPanel);
+  activateView(card, 'result');
+  if (focusResult) card.querySelector<HTMLElement>('[data-role="result-tab"]')!.focus();
 }
 
-/** 같은 검색어로 다시 그릴 때만, 사용자가 고친 값이 든 검색 줄을 그대로 돌려준다. */
-function sameQueryFooter(card: HTMLElement, query: string): HTMLElement | undefined {
-  const input = card.querySelector<HTMLInputElement>('[data-role="search-input"]');
-  if (!input || input.dataset.query !== query) return undefined;
-  return input.closest<HTMLElement>('footer') ?? undefined;
+function activateView(card: HTMLElement, view: 'result' | 'manual'): void {
+  for (const name of ['result', 'manual']) {
+    const selected = name === view;
+    card.querySelector<HTMLElement>(`[data-role="${name}-panel"]`)!.hidden = !selected;
+    const tab = card.querySelector<HTMLElement>(`[data-role="${name}-tab"]`)!;
+    tab.setAttribute('aria-selected', String(selected));
+    tab.tabIndex = selected ? 0 : -1;
+  }
+  card.dispatchEvent(new Event('drag-and-find-view-change'));
+}
+
+function buildTabs(doc: Document, card: HTMLElement): HTMLElement {
+  const tabs = element(doc, 'div', { className: 'card-tabs' });
+  tabs.setAttribute('role', 'tablist');
+  tabs.setAttribute('aria-label', '카드 화면');
+  for (const [view, text] of [
+    ['result', '뜻 보기'],
+    ['manual', '직접 찾기'],
+  ] as const) {
+    const tab = element(doc, 'button', { className: 'card-tab', role: `${view}-tab`, text });
+    tab.id = `dnf-${view}-tab`;
+    tab.setAttribute('type', 'button');
+    tab.setAttribute('role', 'tab');
+    tab.setAttribute('aria-controls', `dnf-${view}-panel`);
+    tab.addEventListener('click', () => activateView(card, view));
+    tab.addEventListener('keydown', (event) => {
+      const target =
+        event.key === 'Home'
+          ? 'result'
+          : event.key === 'End'
+            ? 'manual'
+            : ['ArrowLeft', 'ArrowRight'].includes(event.key)
+              ? view === 'result'
+                ? 'manual'
+                : 'result'
+              : null;
+      if (!target) return;
+      event.preventDefault();
+      event.stopPropagation();
+      activateView(card, target);
+      card.querySelector<HTMLElement>(`[data-role="${target}-tab"]`)!.focus();
+    });
+    tabs.append(tab);
+  }
+  return tabs;
 }
 
 function titleFor(query: string, state: CardState): string {
@@ -329,32 +390,61 @@ function buildHeader(
   return header;
 }
 
-function buildActions(
-  doc: Document,
-  query: string,
-  getSearchEngine: () => SearchEngine,
-): HTMLElement {
-  const actions = element(doc, 'footer', { className: 'card-actions' });
+function buildActions(doc: Document, card: HTMLElement, query: string): HTMLElement {
+  const actions = element(doc, 'div', { className: 'card-actions', role: 'manual-panel' });
+  actions.dataset.query = query;
   const input = searchInput(doc, query);
   const links = {
     google: actionLink(doc, '구글', 'google'),
     naver: actionLink(doc, '네이버', 'naver'),
   };
-  const refresh = () => updateLinks(links, input.value);
+  const error = element(doc, 'p', { className: 'card-search-error', role: 'search-error' });
+  error.setAttribute('role', 'alert');
+  const lookup = element(doc, 'button', {
+    className: 'card-lookup',
+    role: 'lookup-action',
+    text: '뜻 찾기',
+  });
+  lookup.setAttribute('type', 'button');
+  const submit = () => {
+    const value = input.value.trim();
+    const length = Array.from(value).length;
+    if (length < 1 || length > MAX_QUERY_LENGTH) {
+      error.textContent = length < 1 ? '검색어를 입력해 주세요.' : '50자 이하로 입력해 주세요.';
+      input.setAttribute('aria-invalid', 'true');
+      return;
+    }
+    activateView(card, 'result');
+    card.querySelector<HTMLElement>('[data-role="result-tab"]')!.focus();
+    cardHandlers.get(card)!.onLookup(value);
+  };
+  lookup.addEventListener('click', submit);
+  const refresh = () => {
+    updateLinks(links, input.value);
+    error.textContent = '';
+    input.removeAttribute('aria-invalid');
+  };
   input.addEventListener('input', refresh);
   input.addEventListener('keydown', (event) => {
     event.stopPropagation();
     // 한글 조합 중 Enter는 글자 확정용이라 검색하지 않는다.
     if (event.key !== 'Enter' || event.isComposing || event.keyCode === 229) return;
     event.preventDefault();
-    const link = links[getSearchEngine()];
-    if (link.hasAttribute('href')) link.click();
+    submit();
   });
   // 페이지의 단축키가 입력 중인 글자를 가로채지 못하게 막는다.
   input.addEventListener('keyup', (event) => event.stopPropagation());
   input.addEventListener('keypress', (event) => event.stopPropagation());
   refresh();
-  actions.append(input, links.google, links.naver);
+  const row = element(doc, 'div', { className: 'card-manual-row' });
+  row.append(input, lookup);
+  const externalLabel = element(doc, 'p', {
+    className: 'card-external-label',
+    text: '웹에서 검색',
+  });
+  const external = element(doc, 'div', { className: 'card-external-actions' });
+  external.append(links.google, links.naver);
+  actions.append(row, error, externalLabel, external);
   return actions;
 }
 
@@ -392,7 +482,7 @@ function updateLinks(links: Record<SearchEngine, HTMLElement>, value: string): v
 }
 
 function actionLink(doc: Document, name: string, role: string): HTMLElement {
-  const link = externalLink(doc, '', name, role, 'card-action');
+  const link = externalLink(doc, '', `${name}에서 찾기 ↗`, role, 'card-action');
   link.removeAttribute('href');
   link.setAttribute('aria-label', `${name} 검색`);
   link.setAttribute('title', `${name} 검색`);

@@ -56,7 +56,6 @@ function setup(overrides: Partial<ControllerDeps> = {}) {
     overlay,
     requestLookup,
     isIconEnabled: async () => true,
-    getSearchEngine: () => 'naver',
     ...overrides,
   });
   return { overlay, requestLookup, controller };
@@ -289,15 +288,27 @@ describe('late responses', () => {
     expect(overlay.showCard.mock.calls).toHaveLength(callsAfterClose);
   });
 
-  it('passes the current search engine to the card', async () => {
-    const { overlay, controller } = setup({
-      getSearchEngine: vi.fn<ControllerDeps['getSearchEngine']>(() => 'google'),
-    });
+  it('uses only the latest direct lookup response', async () => {
+    const oldResponse = deferred<LookupResult>();
+    const newResponse = deferred<LookupResult>();
+    const requestLookup = vi
+      .fn<ControllerDeps['requestLookup']>()
+      .mockResolvedValueOnce(FOUND)
+      .mockReturnValueOnce(oldResponse.promise)
+      .mockReturnValueOnce(newResponse.promise);
+    const { overlay, controller } = setup({ requestLookup });
     selectContentsOf('term');
     controller.handleShortcut();
     await settle();
+    overlay.showCard.mock.calls.at(-1)![3].onLookup('첫 단어');
+    overlay.showCard.mock.calls.at(-1)![3].onLookup('새 단어');
+    newResponse.resolve({ status: 'not_found' });
+    await settle();
+    oldResponse.resolve(FOUND);
+    await settle();
 
-    expect(overlay.showCard.mock.calls.at(-1)?.[3].getSearchEngine()).toBe('google');
+    expect(overlay.showCard.mock.calls.at(-1)?.[1]).toBe('새 단어');
+    expect(lastCardState(overlay)).toEqual({ kind: 'result', result: { status: 'not_found' } });
   });
 
   it('retry looks up the same word again', async () => {
@@ -315,6 +326,39 @@ describe('late responses', () => {
 });
 
 describe('context and meanings', () => {
+  it('looks up a directly entered word without the selected page context', async () => {
+    const { overlay, requestLookup, controller } = setup();
+    selectContentsOf('term');
+    controller.handleShortcut();
+    await settle();
+
+    overlay.showCard.mock.calls.at(-1)![3].onLookup('데이터베이스');
+    await settle();
+
+    expect(requestLookup).toHaveBeenLastCalledWith('데이터베이스', undefined);
+    expect(overlay.showCard.mock.calls.at(-1)?.[1]).toBe('데이터베이스');
+  });
+
+  it('leaves a meaning detail when a new word is entered directly', async () => {
+    const requestLookup = vi
+      .fn<ControllerDeps['requestLookup']>()
+      .mockResolvedValueOnce(MEANINGS)
+      .mockResolvedValueOnce(DETAIL)
+      .mockResolvedValueOnce(FOUND);
+    const { overlay, controller } = setup({ requestLookup });
+    selectContentsOf('term');
+    controller.handleShortcut();
+    await settle();
+    overlay.showCard.mock.calls.at(-1)![3].onSelectMeaning('데이터베이스 트리거');
+    await settle();
+
+    overlay.showCard.mock.calls.at(-1)![3].onLookup('새 단어');
+    await settle();
+
+    expect(overlay.showCard.mock.calls.at(-1)?.[3].onBackToMeanings).toBeUndefined();
+    expect(requestLookup).toHaveBeenLastCalledWith('새 단어', undefined);
+  });
+
   it('sends the surrounding paragraph as context', async () => {
     const { requestLookup, controller } = setup();
     selectContentsOf('term');
