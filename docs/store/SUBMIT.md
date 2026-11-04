@@ -14,11 +14,22 @@
 터미널에서 저장소 폴더로 가서 실행합니다.
 
 ```
-pnpm install
-pnpm zip
+WXT_LOOKUP_API_URL=https://drag-and-find-lookup.maestro001220.workers.dev pnpm install --frozen-lockfile
+pnpm format:check
+pnpm lint
+pnpm compile
+pnpm test
+pnpm test:e2e
+pnpm exec wrangler deploy --config worker/wrangler.jsonc
 ```
 
-zip 파일은 `.output/` 폴더에 `drag-and-find-1.0.0-chrome.zip` 같은 이름으로 생깁니다(버전이 이름에 들어갑니다).
+Worker 배포 후 실제 `/lookup` 응답을 확인하고 ZIP을 만듭니다.
+
+```
+WXT_LOOKUP_API_URL=https://drag-and-find-lookup.maestro001220.workers.dev pnpm zip
+```
+
+ZIP 파일은 `.output/` 폴더에 `drag-and-find-1.0.2-chrome.zip` 같은 이름으로 생깁니다(버전이 이름에 들어갑니다). ZIP 안의 `manifest.json`에서 버전과 Worker·위키백과 호스트 권한을 확인합니다.
 
 ## 3. 새 항목 만들고 올리기
 
@@ -63,7 +74,7 @@ zip 파일은 `.output/` 폴더에 `drag-and-find-1.0.0-chrome.zip` 같은 이�
 ## 9. 나중에 업데이트하기
 
 1. `package.json`의 `version`을 올립니다. 예: `1.0.0` → `1.0.1` (이전보다 커야 합니다).
-2. `pnpm zip`으로 새 zip을 만듭니다.
+2. 2번의 검증과 Worker 배포를 마친 뒤 Worker 주소를 지정해 새 ZIP을 만듭니다.
 3. 대시보드의 해당 항목에서 새 패키지를 올리는 메뉴로 새 zip을 올리고, 심사에 제출합니다.
 4. 카드 모양이 바뀌었다면 `pnpm store:images`로 스크린샷을 다시 만들어 바꿔 올립니다.
 5. 기능이나 보내는 데이터가 바뀌었다면 `listing.md`·`PRIVACY.md`와 개인정보 보호 탭도 맞춰 고칩니다.

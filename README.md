@@ -2,6 +2,8 @@
 
 모르는 단어가 나오면 검색창을 열지 말고, 그냥 드래그하세요.
 
+이 문서는 저장소의 최신 코드(1.0.2)를 설명합니다. 크롬 웹스토어의 공개 버전은 심사 상태에 따라 다를 수 있습니다.
+
 Drag and Find는 웹페이지에서 드래그한 단어의 네이버 백과 검색 결과를 그 자리에 카드로 보여 주는 크롬 확장 프로그램입니다. 네이버 백과에 결과가 없거나 호출 한도를 넘으면 한국어 위키백과를 조회합니다.
 
 Cloudflare Worker가 한도를 넘거나 연결되지 않을 때도 확장 프로그램이 위키백과를 직접 조회합니다.
@@ -47,19 +49,19 @@ Cloudflare Worker가 한도를 넘거나 연결되지 않을 때도 확장 프�
 [WXT](https://wxt.dev/)와 TypeScript로 만들었습니다. Node 22와 pnpm 12가 필요합니다.
 
 ```bash
-pnpm install
+WXT_LOOKUP_API_URL=https://drag-and-find-lookup.maestro001220.workers.dev pnpm install
 pnpm exec playwright install chromium   # E2E 테스트용, 처음 한 번
 ```
 
 | 목적 | 명령 |
 |---|---|
 | 개발 (크롬 자동 실행, 변경 즉시 반영) | `pnpm dev` |
-| 빌드 (`.output/chrome-mv3/`) | `pnpm build` |
+| 빌드 (`.output/chrome-mv3/`) | `WXT_LOOKUP_API_URL=https://drag-and-find-lookup.maestro001220.workers.dev pnpm build` |
 | 단위 테스트 / E2E 테스트 | `pnpm test` / `pnpm test:e2e` |
 | 타입 검사 / 린트 / 포맷 검사 | `pnpm compile` / `pnpm lint` / `pnpm format:check` |
-| 웹스토어 업로드용 zip | `pnpm zip` |
+| 웹스토어 업로드용 zip | `WXT_LOOKUP_API_URL=https://drag-and-find-lookup.maestro001220.workers.dev pnpm zip` |
 
-크롬에 직접 올려 보기: `pnpm build` → `chrome://extensions` → 개발자 모드 켜기 → "압축해제된 확장 프로그램을 로드합니다" → `.output/chrome-mv3` 폴더 선택
+크롬에 직접 올려 보기: Worker 주소를 지정해 `pnpm build` → `chrome://extensions` → 개발자 모드 켜기 → "압축해제된 확장 프로그램을 로드합니다" → `.output/chrome-mv3` 폴더 선택
 
 ### 중계 Worker 설정
 
