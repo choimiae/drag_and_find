@@ -21,6 +21,17 @@ Cloudflare Worker가 한도를 넘거나 연결되지 않을 때도 확장 프�
 2. 단어 옆에 나타난 돋보기 아이콘을 누르거나, 단축키 `Alt+Shift+F`(맥은 `⌥⇧F`)를 누릅니다.
 3. 출처가 표시된 설명 카드가 단어 아래에 나타납니다. `Esc` 키나 카드 바깥을 누르면 닫힙니다.
 
+### 컴퓨터에 저장된 HTML 파일에서 사용하기
+
+크롬은 기본적으로 확장 프로그램이 `file://` 주소로 연 로컬 파일에서 실행되는 것을 허용하지 않습니다. 로컬 HTML 파일에서 단어를 드래그해도 아이콘이 나타나지 않는다면 다음 설정을 켜세요.
+
+1. 크롬 주소창에 `chrome://extensions`를 입력합니다.
+2. **Drag and Find**의 **세부정보**를 엽니다.
+3. **파일 URL에 대한 액세스 허용**을 켭니다.
+4. 로컬 파일 탭을 새로고침한 뒤 다시 사용합니다.
+
+이 설정은 크롬에서 연 `file://` 페이지에 확장 프로그램이 동작하도록 허용합니다. 컴퓨터의 다른 파일을 자동으로 열거나 서버로 보내지는 않으며, 찾기를 요청하면 선택한 단어만 조회에 사용합니다. 자세한 내용은 [크롬의 파일 URL 접근 안내](https://developer.chrome.com/docs/extensions/develop/concepts/declare-permissions?hl=ko#allow-access)를 참고하세요.
+
 ## 주요 기능
 
 - **네이버 백과 우선 조회**: 네이버 백과 검색 결과 한 건을 보여 줍니다. 결과가 없거나 한도가 차면 위키백과 요약을 보여 줍니다.
@@ -60,7 +71,7 @@ pnpm exec playwright install chromium   # E2E 테스트용, 처음 한 번
 | 단위 테스트 / E2E 테스트 | `pnpm test` / `pnpm test:e2e` |
 | 배포된 Worker 확인 | `WXT_LOOKUP_API_URL=https://drag-and-find-lookup.maestro001220.workers.dev pnpm worker:check` |
 | 타입 검사 / 린트 / 포맷 검사 | `pnpm compile` / `pnpm lint` / `pnpm format:check` |
-| 웹스토어 업로드용 zip | `WXT_LOOKUP_API_URL=https://drag-and-find-lookup.maestro001220.workers.dev pnpm zip` |
+| 웹스토어 업로드용 zip (Worker 확인 포함) | `WXT_LOOKUP_API_URL=https://drag-and-find-lookup.maestro001220.workers.dev pnpm zip` |
 
 크롬에 직접 올려 보기: Worker 주소를 지정해 `pnpm build` → `chrome://extensions` → 개발자 모드 켜기 → "압축해제된 확장 프로그램을 로드합니다" → `.output/chrome-mv3` 폴더 선택
 

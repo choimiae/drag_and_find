@@ -23,5 +23,5 @@
 - 브라우저 동작을 바꾸면 `pnpm test:e2e`를 실행한다. 이 테스트는 Chromium에서 확장을 구동하지만 외부 서비스 응답은 가짜 값으로 대체한다.
 - 커밋 전에는 `pnpm format:check`, `pnpm lint`, `pnpm compile`, `pnpm test`, `pnpm test:e2e`를 모두 실행한다.
 - `assets/icon.svg`를 바꾸면 `pnpm icons`로 아이콘 PNG를 다시 만든다. 스토어에 보이는 화면을 바꾸면 `pnpm store:images`로 스크린샷을 다시 만들고 README 이미지와 스토어 등록 이미지를 확인한다.
-- 배포 전에는 `.github/workflows/ci.yml`의 전체 검사를 통과시키고, `WXT_LOOKUP_API_URL`을 지정해 `pnpm worker:check`로 실제 배포 Worker를 확인한다. 단위·E2E 테스트 통과를 실제 Worker 정상 동작의 증거로 삼지 않는다.
+- 배포 전에는 `.github/workflows/ci.yml`의 전체 검사를 통과시킨다. `pnpm zip`은 실제 배포 Worker를 `pnpm worker:check`로 확인한 뒤 ZIP을 만든다. 단위·E2E 테스트 통과를 실제 Worker 정상 동작의 증거로 삼지 않는다.
 - 배포용 확장 빌드와 ZIP 생성에는 실제 Worker 주소를 `WXT_LOOKUP_API_URL`로 지정한다. 절차는 `docs/store/SUBMIT.md`를 따른다. 비밀키는 저장소에 기록하지 않는다.

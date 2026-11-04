@@ -23,10 +23,9 @@ pnpm test:e2e
 pnpm exec wrangler deploy --config worker/wrangler.jsonc
 ```
 
-Worker 배포 후 실제 `/lookup` 응답을 확인하고 ZIP을 만듭니다.
+Worker 배포 후 ZIP을 만듭니다. `pnpm zip`이 실제 `/lookup` 응답을 먼저 확인하며, 확인에 실패하면 ZIP을 만들지 않습니다.
 
 ```
-WXT_LOOKUP_API_URL=https://drag-and-find-lookup.maestro001220.workers.dev pnpm worker:check
 WXT_LOOKUP_API_URL=https://drag-and-find-lookup.maestro001220.workers.dev pnpm zip
 ```
 
