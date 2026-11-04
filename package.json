@@ -16,6 +16,7 @@
     "format:check": "prettier --check .",
     "test": "vitest run",
     "test:e2e": "wxt build --mode e2e && playwright test",
+    "worker:check": "node scripts/check-worker.mjs",
     "postinstall": "wxt prepare"
   },
   "devDependencies": {

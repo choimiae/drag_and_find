@@ -26,6 +26,7 @@ pnpm exec wrangler deploy --config worker/wrangler.jsonc
 Worker 배포 후 실제 `/lookup` 응답을 확인하고 ZIP을 만듭니다.
 
 ```
+WXT_LOOKUP_API_URL=https://drag-and-find-lookup.maestro001220.workers.dev pnpm worker:check
 WXT_LOOKUP_API_URL=https://drag-and-find-lookup.maestro001220.workers.dev pnpm zip
 ```
 

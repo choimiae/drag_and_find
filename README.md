@@ -58,6 +58,7 @@ pnpm exec playwright install chromium   # E2E 테스트용, 처음 한 번
 | 개발 (크롬 자동 실행, 변경 즉시 반영) | `pnpm dev` |
 | 빌드 (`.output/chrome-mv3/`) | `WXT_LOOKUP_API_URL=https://drag-and-find-lookup.maestro001220.workers.dev pnpm build` |
 | 단위 테스트 / E2E 테스트 | `pnpm test` / `pnpm test:e2e` |
+| 배포된 Worker 확인 | `WXT_LOOKUP_API_URL=https://drag-and-find-lookup.maestro001220.workers.dev pnpm worker:check` |
 | 타입 검사 / 린트 / 포맷 검사 | `pnpm compile` / `pnpm lint` / `pnpm format:check` |
 | 웹스토어 업로드용 zip | `WXT_LOOKUP_API_URL=https://drag-and-find-lookup.maestro001220.workers.dev pnpm zip` |
 
@@ -70,6 +71,8 @@ pnpm exec playwright install chromium   # E2E 테스트용, 처음 한 번
 3. 배포된 Worker 주소를 `WXT_LOOKUP_API_URL`로 지정해 확장을 빌드합니다. 예: `WXT_LOOKUP_API_URL=https://drag-and-find-lookup.example.workers.dev pnpm build` (예시 주소를 실제 주소로 교체).
 
 Worker 배포: `pnpm exec wrangler deploy --config worker/wrangler.jsonc`. 로컬 실행: `pnpm exec wrangler dev --config worker/wrangler.jsonc`. Worker 주소 없이 배포 빌드를 실행하면 설정 오류로 빌드가 중단됩니다.
+
+배포 확인 명령은 실제 Worker에 `온보딩` 조회를 보내 HTTP 상태, 결과 형식, 걸린 시간을 확인합니다. 네이버 백과·위키백과 등 외부 서비스 상태에 따라 실패할 수 있으므로 결과를 보고 원인을 확인하세요.
 
 ## 문의
 
