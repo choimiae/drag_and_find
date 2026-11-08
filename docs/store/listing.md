@@ -103,7 +103,7 @@ Worker 요청 한도 초과나 연결 장애가 발생했을 때 선택하거나
 **개인정보처리방침 URL**
 
 ```
-https://github.com/choimiae/drag_and_find/blob/main/PRIVACY.md
+https://github.com/choimiae/drag_and_find/blob/main/PRIVACY.md?plain=1
 ```
 
 ## 링크
