@@ -118,6 +118,19 @@ export const OVERLAY_CSS = `
 .card-back { padding: 3px 0; border: 0; background: none; color: var(--dnf-accent); font: inherit; font-size: 11px; font-weight: 700; cursor: pointer; }
 .card-back:hover, .card-back:focus-visible { text-decoration: underline; }
 .card-body { flex: 1 1 auto; min-height: 0; overflow: auto; padding: 4px 15px 12px; }
+.card-loading { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 92px; gap: 5px; }
+.card-loading-dots { display: flex; align-items: center; justify-content: center; gap: 5px; height: 24px; }
+.card-loading-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--dnf-accent); animation: dnf-loading-bounce 1.2s ease-in-out infinite; }
+.card-loading-dot:nth-child(2) { background: #0bad9b; animation-delay: 150ms; }
+.card-loading-dot:nth-child(3) { background: #03c75a; animation-delay: 300ms; }
+.card-loading-label { color: var(--dnf-muted); font-size: 12px; }
+@keyframes dnf-loading-bounce {
+  0%, 70%, 100% { transform: translateY(0); opacity: 0.5; }
+  35% { transform: translateY(-6px); opacity: 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .card-loading-dot { animation: none; opacity: 1; }
+}
 .card-detail-title { display: block; margin: 4px 0 10px; font-size: 16px; font-weight: 800; overflow-wrap: anywhere; }
 .card-body::-webkit-scrollbar { width: 6px; }
 .card-body::-webkit-scrollbar-thumb { background: var(--dnf-scrollbar); border-radius: 999px; }

@@ -20,6 +20,26 @@ test('드래그 후 아이콘을 누르면 위키백과 요약 카드가 뜬다'
   );
 });
 
+test('조회 중 점 로딩을 보여 주고 응답이 오면 설명으로 바꾼다', async ({ page, context }) => {
+  let releaseResponse!: () => void;
+  const pendingResponse = new Promise<void>((resolve) => {
+    releaseResponse = resolve;
+  });
+  await context.route('https://lookup.example.test/lookup**', async (route) => {
+    await pendingResponse;
+    await route.fallback();
+  });
+
+  await openArticleAndLookUp(page, 'known');
+  await expect(role(page, 'loading')).toHaveAttribute('role', 'status');
+  await expect(role(page, 'loading')).toHaveText('뜻을 찾고 있어요');
+  await expect(role(page, 'loading-dots').locator('span')).toHaveCount(3);
+
+  releaseResponse();
+  await expect(role(page, 'extract')).toContainText('신입 직원');
+  await expect(role(page, 'loading')).toHaveCount(0);
+});
+
 test('Worker 요청 제한 시 위키백과를 직접 조회해 카드를 보여 준다', async ({ page, context }) => {
   let workerRequests = 0;
   let wikipediaRequests = 0;

@@ -155,7 +155,20 @@ function isAmbiguous(state: CardState): boolean {
 }
 
 function bodyContent(doc: Document, state: CardState, handlers: CardHandlers): Node[] {
-  if (state.kind === 'loading') return [doc.createTextNode('찾는 중…')];
+  if (state.kind === 'loading') {
+    const loading = element(doc, 'div', { className: 'card-loading', role: 'loading' });
+    loading.setAttribute('role', 'status');
+    const dots = element(doc, 'span', { className: 'card-loading-dots', role: 'loading-dots' });
+    dots.setAttribute('aria-hidden', 'true');
+    dots.append(
+      ...Array.from({ length: 3 }, () => element(doc, 'span', { className: 'card-loading-dot' })),
+    );
+    loading.append(
+      dots,
+      element(doc, 'span', { className: 'card-loading-label', text: '뜻을 찾고 있어요' }),
+    );
+    return [loading];
+  }
   if (state.kind === 'too_long') {
     return [doc.createTextNode(`선택이 너무 깁니다 (${MAX_QUERY_LENGTH}자 이하)`)];
   }

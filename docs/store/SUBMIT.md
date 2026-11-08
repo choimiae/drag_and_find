@@ -29,7 +29,7 @@ Worker 배포 후 ZIP을 만듭니다. `pnpm zip`이 실제 `/lookup` 응답을 
 WXT_LOOKUP_API_URL=https://drag-and-find-lookup.maestro001220.workers.dev pnpm zip
 ```
 
-ZIP 파일은 `.output/` 폴더에 `drag-and-find-1.0.2-chrome.zip` 같은 이름으로 생깁니다(버전이 이름에 들어갑니다). ZIP 안의 `manifest.json`에서 버전과 Worker·위키백과 호스트 권한을 확인합니다.
+ZIP 파일은 `.output/` 폴더에 `drag-and-find-1.0.3-chrome.zip` 같은 이름으로 생깁니다(버전이 이름에 들어갑니다). ZIP 안의 `manifest.json`에서 버전과 Worker·위키백과 호스트 권한을 확인합니다.
 
 ## 3. 새 항목 만들고 올리기
 

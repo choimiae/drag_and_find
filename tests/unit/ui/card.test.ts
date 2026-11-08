@@ -170,11 +170,14 @@ describe('renderCard', () => {
     expect(part('source-links')?.querySelectorAll('a')).toHaveLength(1);
     expect(part('source-links')?.textContent).toContain('위키백과 ↗');
   });
-  it('shows loading text with the query and search buttons', () => {
+  it('shows three decorative loading dots and an accessible status', () => {
     renderCard(card, '온보딩', { kind: 'loading' }, handlers);
 
     expect(part('title')?.textContent).toBe('온보딩');
-    expect(part('body')?.textContent).toBe('찾는 중…');
+    expect(part('body')?.textContent).toBe('뜻을 찾고 있어요');
+    expect(part('loading')?.getAttribute('role')).toBe('status');
+    expect(part('loading-dots')?.getAttribute('aria-hidden')).toBe('true');
+    expect(part('loading-dots')?.children).toHaveLength(3);
     expect(part('google')?.getAttribute('href')).toBe(
       'https://www.google.com/search?q=%EC%98%A8%EB%B3%B4%EB%94%A9',
     );
@@ -222,7 +225,7 @@ describe('renderCard', () => {
     );
 
     expect(part('back-to-meanings')?.textContent).toBe('← 뜻 목록');
-    expect(part('body')?.textContent).toContain('찾는 중…');
+    expect(part('body')?.textContent).toContain('뜻을 찾고 있어요');
   });
 
   it('opens search buttons in a new tab safely', () => {
