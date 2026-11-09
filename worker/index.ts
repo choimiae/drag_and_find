@@ -22,7 +22,7 @@ export function createWorkerHandler(
     { clientId: env.NAVER_CLIENT_ID, clientSecret: env.NAVER_CLIENT_SECRET },
     fetchFn,
   );
-  const wikipediaUserAgent = 'DragAndFind/1.0.2 (https://github.com/choimiae/drag_and_find)';
+  const wikipediaUserAgent = 'DragAndFind/1.0.3 (https://github.com/choimiae/drag_and_find)';
 
   const wikipediaKo = createWikipediaKoProvider({
     userAgent: wikipediaUserAgent,
