@@ -90,3 +90,7 @@ Worker 배포: `pnpm exec wrangler deploy --config worker/wrangler.jsonc`. 로�
 ## 문의
 
 maestro001220@gmail.com
+
+## 라이선스
+
+이 프로젝트는 [MIT 라이선스](LICENSE)를 따릅니다. 원본 코드의 저작권자는 [maestro (GitHub: choimiae)](https://github.com/choimiae)이며, 코드를 재사용하거나 배포할 때 저작권 표시와 라이선스 문구를 포함해야 합니다.
