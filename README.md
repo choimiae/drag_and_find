@@ -51,7 +51,7 @@ Cloudflare Worker가 한도를 넘거나 연결되지 않을 때도 확장 프�
 - 직접 입력한 단어도 카드에서 뜻 찾기를 요청할 때 같은 Worker 조회 흐름에 사용합니다. 이때 웹페이지의 주변 문맥은 보내지 않습니다.
 - 구글·네이버 링크는 직접 누를 때만 동작합니다. 입력한 검색어로 검색한 페이지가 새 탭으로 열리므로 그 말이 해당 사이트에 전달됩니다.
 - 단어 앞뒤의 글은 뜻을 고르는 데에만 브라우저 안에서 쓰고, 서버로 보내지 않습니다.
-- 분석 도구와 광고는 없습니다. 설정은 내 기기에만 저장됩니다. 검색 결과는 캐시하지 않습니다.
+- 조회가 끝나면 설치별 무작위 식별자, 완료·실패 여부, 확장 버전만 Worker를 통해 GA4에 보내 사용량을 집계합니다. 검색어·방문 URL·페이지 내용은 통계에 포함하지 않습니다. 광고는 없습니다. 검색 결과는 캐시하지 않습니다.
 
 자세한 내용은 [개인정보 처리방침](PRIVACY.md)을 확인하세요.
 
@@ -74,13 +74,16 @@ pnpm exec playwright install chromium   # E2E 테스트용, 처음 한 번
 | 배포된 Worker 확인 | `pnpm worker:check:live` |
 | 타입 검사 / 린트 / 포맷 검사 | `pnpm compile` / `pnpm lint` / `pnpm format:check` |
 | 웹스토어 업로드용 zip (Worker 확인 포함) | `pnpm zip:store` |
+| 관리자 화면 빌드 / 로컬 실행 | `pnpm admin:build` / `pnpm admin:dev` |
+
+관리자 통합 화면의 계정 연결과 접근 제한 절차는 [관리자 설정 안내](docs/admin/SETUP.md)를 참고하세요.
 
 크롬에 직접 올려 보기: `pnpm build:dev` → `chrome://extensions` → 개발자 모드 켜기 → "압축해제된 확장 프로그램을 로드합니다" → `.output/chrome-mv3` 폴더 선택. `build:dev`는 수동 테스트용 이름이며 WXT의 production 빌드를 생성합니다. Worker 주소가 바뀌면 `package.json`의 관련 명령도 새 주소로 수정해야 합니다.
 
 ### 중계 Worker 설정
 
 1. NAVER Cloud Platform의 NAVER API HUB에서 백과사전 검색용 Application과 Client ID·Secret을 발급하고 일별 이용 한도를 설정합니다.
-2. Cloudflare 대시보드에서 `drag-and-find-lookup` Worker를 만들고 `NAVER_CLIENT_ID`, `NAVER_CLIENT_SECRET`을 **Secrets**로 등록한 뒤 `worker/wrangler.jsonc`를 배포합니다. 로컬 개발에는 버전 관리에서 제외된 `worker/.dev.vars`를 사용합니다.
+2. Cloudflare 대시보드에서 `drag-and-find-lookup` Worker를 만들고 `NAVER_CLIENT_ID`, `NAVER_CLIENT_SECRET`, `GA4_MEASUREMENT_ID`, `GA4_API_SECRET`을 **Secrets**로 등록한 뒤 `worker/wrangler.jsonc`를 배포합니다. GA4 설정 절차는 [관리자 설정 안내](docs/admin/SETUP.md)에 있습니다. 로컬 개발에는 버전 관리에서 제외된 `worker/.dev.vars`를 사용합니다.
 3. 배포된 Worker 주소를 `WXT_LOOKUP_API_URL`로 지정해 확장을 빌드합니다. 예: `WXT_LOOKUP_API_URL=https://drag-and-find-lookup.example.workers.dev pnpm build` (예시 주소를 실제 주소로 교체).
 
 Worker 배포: `pnpm exec wrangler deploy --config worker/wrangler.jsonc`. 로컬 실행: `pnpm exec wrangler dev --config worker/wrangler.jsonc`. Worker 주소 없이 배포 빌드를 실행하면 설정 오류로 빌드가 중단됩니다.

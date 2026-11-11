@@ -11,6 +11,8 @@ export default tseslint.config(
       'playwright-report/',
       'test-results/',
       'worker/.wrangler/',
+      'admin/.wrangler/',
+      'admin/dist/',
     ],
   },
   js.configs.recommended,

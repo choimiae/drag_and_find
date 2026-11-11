@@ -1,5 +1,6 @@
 import { browser } from 'wxt/browser';
 import { defineBackground } from 'wxt/utils/define-background';
+import { createAnalyticsClient } from '../lib/analytics/client';
 import { createBrowserWikipediaProvider } from '../lib/lookup/browser-wikipedia';
 import { createFallbackLookupService } from '../lib/lookup/fallback-service';
 import { createLookupMessageHandler } from '../lib/lookup/message-handler';
@@ -17,7 +18,14 @@ export default defineBackground(() => {
     ),
     createLookupService(createBrowserWikipediaProvider()),
   );
-  const handleLookup = createLookupMessageHandler(lookup);
+  const analytics = createAnalyticsClient({
+    workerUrl,
+    version: browser.runtime.getManifest().version,
+    storage: browser.storage.local,
+  });
+  const handleLookup = createLookupMessageHandler(lookup, (result) => {
+    void analytics.recordLookupOutcome(result);
+  });
 
   browser.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     const pending = handleLookup(message);

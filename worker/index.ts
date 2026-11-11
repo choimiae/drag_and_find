@@ -4,6 +4,7 @@ import { createNaverProvider } from './naver';
 import { createWikidataProvider } from './wikidata';
 import { lookupSources } from './lookup';
 import { fetchEnglishExtracts, MAX_ENGLISH_CONTEXT_TITLES } from '../lib/lookup/wikipedia-context';
+import { handleTelemetry } from './telemetry';
 
 interface RateLimiter {
   limit(options: { key: string }): Promise<{ success: boolean }>;
@@ -11,6 +12,8 @@ interface RateLimiter {
 export interface WorkerEnv {
   NAVER_CLIENT_ID: string;
   NAVER_CLIENT_SECRET: string;
+  GA4_MEASUREMENT_ID?: string;
+  GA4_API_SECRET?: string;
   RATE_LIMITER?: RateLimiter;
 }
 
@@ -38,6 +41,10 @@ export function createWorkerHandler(
   const wikidata = createWikidataProvider(wikipediaUserAgent, wikipediaKo, fetchFn);
   return async (request) => {
     const url = new URL(request.url);
+    if (url.pathname === '/telemetry') {
+      if (request.method !== 'POST') return new Response(null, { status: 405 });
+      return handleTelemetry(request, env, fetchFn);
+    }
     if (request.method === 'POST' && url.pathname === '/english-context') {
       let titles: string[];
       try {

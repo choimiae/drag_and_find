@@ -8,6 +8,9 @@
   "scripts": {
     "dev": "wxt",
     "dev:worker": "WXT_LOOKUP_API_URL=https://drag-and-find-lookup.maestro001220.workers.dev wxt",
+    "admin:dev": "pnpm admin:build && wrangler dev --config admin/wrangler.jsonc",
+    "admin:build": "vite build --config admin/vite.config.ts",
+    "admin:preview": "vite --config admin/vite.config.ts --host 127.0.0.1",
     "build": "wxt build",
     "build:dev": "WXT_LOOKUP_API_URL=https://drag-and-find-lookup.maestro001220.workers.dev wxt build",
     "zip": "pnpm worker:check && wxt zip",

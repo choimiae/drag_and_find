@@ -13,6 +13,8 @@
 # 빌드·테스트 산출물
 node_modules/
 .output/
+admin/dist/
+admin/.wrangler/
 .wxt/
 playwright-report/
 test-results/
@@ -20,6 +22,8 @@ test-results/
 # Cloudflare Worker 로컬 인증 정보
 worker/.dev.vars*
 worker/.env*
+admin/.dev.vars*
+admin/.env*
 
 # 확장 빌드 환경 (E2E 설정만 버전 관리)
 .env*

@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json.schemastore.org/wrangler.json",
+  "name": "drag-and-find-admin",
+  "main": "src/api.ts",
+  "compatibility_date": "2026-10-30",
+  "assets": {
+    "directory": "./dist",
+    "binding": "ASSETS",
+    "not_found_handling": "single-page-application",
+    "run_worker_first": true,
+  },
+  "vars": {
+    "CF_SCRIPT_NAME": "drag-and-find-lookup",
+    "LOOKUP_WORKER_URL": "https://drag-and-find-lookup.maestro001220.workers.dev",
+  },
+}
