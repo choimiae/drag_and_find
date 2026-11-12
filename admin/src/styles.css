@@ -372,6 +372,9 @@ h1 {
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 16px;
 }
+.details > div {
+  min-width: 0;
+}
 .detail-card {
   padding: 21px 23px;
   border: 1px solid #e3e6ea;

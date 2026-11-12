@@ -1,5 +1,8 @@
+// @vitest-environment node
 import { describe, expect, it, vi } from 'vitest';
 import { handleAdminRequest } from '../../../admin/src/api';
+import { recordUsage } from '../../../worker/usage-db';
+import { sqliteUsageDb } from '../sqlite-d1';
 
 describe('관리자 API', () => {
   it('기간을 지정하지 않으면 오늘 통계를 반환한다', async () => {
@@ -24,6 +27,7 @@ describe('관리자 API', () => {
       days: number;
       store: { status: string };
       usage: { status: string };
+      liveUsage: { status: string };
     };
 
     expect(response.status).toBe(200);
@@ -31,6 +35,40 @@ describe('관리자 API', () => {
     expect(body.days).toBe(7);
     expect(body.store.status).toBe('connection_required');
     expect(body.usage.status).toBe('connection_required');
+    expect(body.liveUsage.status).toBe('connection_required');
+  });
+
+  it('실시간 API는 D1의 완료·실패·사용 설치 수를 별도로 반환한다', async () => {
+    const { db } = sqliteUsageDb();
+    await recordUsage(db, '123.456', 'lookup_completed');
+    const response = await handleAdminRequest(
+      new Request('https://admin.example.test/api/live-usage?days=1'),
+      { ASSETS: { fetch: vi.fn() }, USAGE_DB: db },
+    );
+    const body = (await response.json()) as {
+      status: string;
+      data: { activeInstalls: number; completed: number; failed: number };
+    };
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get('Cache-Control')).toBe('no-store');
+    expect(body).toMatchObject({
+      status: 'ready',
+      data: { activeInstalls: 1, completed: 1, failed: 0 },
+    });
+  });
+
+  it('기본 대시보드에도 D1 실시간 사용량을 포함한다', async () => {
+    const { db } = sqliteUsageDb();
+    await recordUsage(db, '123.456', 'lookup_failed');
+    const response = await handleAdminRequest(
+      new Request('https://admin.example.test/api/dashboard'),
+      { ASSETS: { fetch: vi.fn() }, USAGE_DB: db },
+    );
+    const body = (await response.json()) as {
+      liveUsage: { status: string; data: { failed: number } };
+    };
+    expect(body.liveUsage).toMatchObject({ status: 'ready', data: { failed: 1 } });
   });
 
   it('허용되지 않은 기간을 거부한다', async () => {

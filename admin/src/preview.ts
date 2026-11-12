@@ -25,6 +25,16 @@ export function previewDashboard(days: 1 | 7 | 30): DashboardResponse {
         daily,
       },
     },
+    liveUsage: {
+      status: 'ready',
+      updatedAt,
+      data: {
+        activeInstalls: 128,
+        completed: daily.reduce((sum, day) => sum + day.completed, 0),
+        failed: daily.reduce((sum, day) => sum + day.failed, 0),
+        daily,
+      },
+    },
     store: {
       status: 'ready',
       updatedAt,

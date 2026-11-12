@@ -1,4 +1,4 @@
-import type { DashboardResponse, Section } from './types';
+import type { DashboardResponse, Section, UsageMetrics } from './types';
 
 function sectionValue<T>(section: Section<T>, value: (data: T) => number): string {
   if (section.status === 'ready') return value(section.data).toLocaleString('ko-KR');
@@ -62,16 +62,16 @@ export function renderDashboard(root: HTMLElement, dashboard: DashboardResponse)
       <main>
         <div class="section-heading"><h2>현황</h2><p>조회 사용 설치 수는 사람 수와 다를 수 있습니다</p></div>
         <div class="metrics">
-          <section class="metric metric-highlight"><span>조회 사용 설치 수</span><strong id="active-installs"></strong><small>확장 사용 · GA4</small></section>
-          <section class="metric"><span>단어 조회 건수</span><strong id="lookups"></strong><small>확장 사용 · GA4</small></section>
+          <section class="metric metric-highlight"><span>조회 사용 설치 수</span><strong id="active-installs"></strong><small>실시간 · D1</small></section>
+          <section class="metric"><span>단어 조회 건수</span><strong id="lookups"></strong><small>실시간 · D1</small></section>
           <section class="metric"><span>웹스토어 설치</span><strong id="installs"></strong><small>Chrome Web Store</small></section>
-          <section class="metric"><span>조회 실패</span><strong id="lookup-failures"></strong><small>확장 사용 · GA4</small></section>
+          <section class="metric"><span>조회 실패</span><strong id="lookup-failures"></strong><small>실시간 · D1</small></section>
         </div>
         <div class="middle">
           <section class="panel chart-panel"><h2>일별 조회 추이</h2><p class="chart-description">조회 완료 건수</p><div id="chart" class="chart"></div></section>
           <section class="panel health-panel"><div class="detail-head"><h2>Worker 현재 상태</h2><span id="health-badge" class="badge"></span></div><strong id="latency" class="latency"></strong><p>실제 단어 조회 응답 시간</p><div id="health-details"></div></section>
         </div>
-        <h2 class="details-heading">출처별 상세</h2><div id="details" class="details"></div>
+        <h2 class="details-heading">출처별 상세</h2><div id="details" class="details"><div id="live-details"></div><div id="ga4-details"></div><div id="store-details"></div></div>
         <footer class="dashboard-footer" id="last-checked"></footer>
       </main>
     </div>`;
@@ -81,20 +81,8 @@ export function renderDashboard(root: HTMLElement, dashboard: DashboardResponse)
     if (target) target.textContent = value;
   };
   set(
-    'active-installs',
-    sectionValue(dashboard.usage, (data) => data.activeInstalls),
-  );
-  set(
-    'lookups',
-    sectionValue(dashboard.usage, (data) => data.completed + data.failed),
-  );
-  set(
     'installs',
     sectionValue(dashboard.store, (data) => data.installs),
-  );
-  set(
-    'lookup-failures',
-    sectionValue(dashboard.usage, (data) => data.failed),
   );
   set(
     'latency',
@@ -114,10 +102,57 @@ export function renderDashboard(root: HTMLElement, dashboard: DashboardResponse)
   if (healthDetails && dashboard.health.status === 'ready') {
     healthDetails.append(detail('HTTP 상태', String(dashboard.health.data.httpStatus)));
   }
+  renderLiveUsage(root, dashboard.liveUsage);
+  const ga4Details = root.querySelector<HTMLElement>('#ga4-details');
+  const storeDetails = root.querySelector<HTMLElement>('#store-details');
+  if (ga4Details)
+    showSection(ga4Details, 'GA4 · 지연 통계', dashboard.usage, [
+      ['조회 완료', (data) => data.completed],
+      ['조회 실패', (data) => data.failed],
+      ['사용한 설치 수', (data) => data.activeInstalls],
+    ]);
+  if (storeDetails)
+    showSection(storeDetails, 'Chrome Web Store · 일별 통계', dashboard.store, [
+      ['설치', (data) => data.installs],
+      ['삭제', (data) => data.uninstalls],
+      ['페이지 조회', (data) => data.pageViews],
+      ['노출', (data) => data.impressions],
+      ['스토어 일일 이용자', (data) => data.users],
+    ]);
+}
+
+export function renderLiveUsage(root: HTMLElement, usage: Section<UsageMetrics>): void {
+  const set = (id: string, value: string) => {
+    const target = root.querySelector<HTMLElement>(`#${id}`);
+    if (target) target.textContent = value;
+  };
+  set(
+    'active-installs',
+    sectionValue(usage, (data) => data.activeInstalls),
+  );
+  set(
+    'lookups',
+    sectionValue(usage, (data) => data.completed + data.failed),
+  );
+  set(
+    'lookup-failures',
+    sectionValue(usage, (data) => data.failed),
+  );
+  const liveDetails = root.querySelector<HTMLElement>('#live-details');
+  if (liveDetails) {
+    liveDetails.replaceChildren();
+    showSection(liveDetails, '실시간 조회 · D1', usage, [
+      ['조회 완료', (data) => data.completed],
+      ['조회 실패', (data) => data.failed],
+      ['사용한 설치 수', (data) => data.activeInstalls],
+    ]);
+  }
   const chart = root.querySelector<HTMLElement>('#chart');
   if (chart) {
-    if (dashboard.usage.status === 'ready' && dashboard.usage.data.daily.length > 0) {
-      const largest = Math.max(1, ...dashboard.usage.data.daily.map((day) => day.completed));
+    chart.replaceChildren();
+    chart.classList.remove('chart-empty');
+    if (usage.status === 'ready' && usage.data.daily.length > 0) {
+      const largest = Math.max(1, ...usage.data.daily.map((day) => day.completed));
       const magnitude = 10 ** Math.floor(Math.log10(largest));
       const maximum = [1, 2, 5, 10].find((step) => step * magnitude >= largest)! * magnitude;
       const axis = document.createElement('div');
@@ -138,7 +173,7 @@ export function renderDashboard(root: HTMLElement, dashboard: DashboardResponse)
       }
       const columns = document.createElement('div');
       columns.className = 'chart-columns';
-      for (const day of dashboard.usage.data.daily) {
+      for (const day of usage.data.daily) {
         const column = document.createElement('div');
         column.className = 'chart-column';
         const barArea = document.createElement('div');
@@ -163,43 +198,83 @@ export function renderDashboard(root: HTMLElement, dashboard: DashboardResponse)
     } else {
       chart.classList.add('chart-empty');
       chart.textContent =
-        dashboard.usage.status === 'connection_required'
+        usage.status === 'connection_required'
           ? '확장 사용량 연결 후 표시됩니다.'
-          : '표시할 조회 데이터가 없습니다.';
+          : usage.status === 'error'
+            ? (usage.message ?? '실시간 통계를 가져오지 못했습니다.')
+            : '표시할 조회 데이터가 없습니다.';
     }
   }
-
-  const details = root.querySelector<HTMLElement>('#details');
-  if (!details) return;
-  showSection(details, '확장 사용 · GA4', dashboard.usage, [
-    ['조회 완료', (data) => data.completed],
-    ['조회 실패', (data) => data.failed],
-    ['사용한 설치 수', (data) => data.activeInstalls],
-  ]);
-  showSection(details, 'Chrome Web Store', dashboard.store, [
-    ['설치', (data) => data.installs],
-    ['삭제', (data) => data.uninstalls],
-    ['페이지 조회', (data) => data.pageViews],
-    ['노출', (data) => data.impressions],
-    ['스토어 일일 이용자', (data) => data.users],
-  ]);
 }
 
-async function load(root: HTMLElement, days: 1 | 7 | 30): Promise<void> {
+let requestSequence = 0;
+const latestDashboardRequest = new WeakMap<HTMLElement, number>();
+const latestLiveRequest = new WeakMap<HTMLElement, number>();
+const latestLiveResult = new WeakMap<
+  HTMLElement,
+  { days: string; sequence: number; usage: Section<UsageMetrics> }
+>();
+
+export async function loadDashboard(root: HTMLElement, days: 1 | 7 | 30): Promise<void> {
+  const startedAt = ++requestSequence;
+  latestDashboardRequest.set(root, startedAt);
   try {
     const response = await fetch(`/api/dashboard?days=${days}`, { cache: 'no-store' });
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     const data = (await response.json()) as DashboardResponse;
+    if (latestDashboardRequest.get(root) !== startedAt) return;
     renderDashboard(root, data);
+    const liveResult = latestLiveResult.get(root);
+    if (liveResult?.days === String(days) && liveResult.sequence > startedAt)
+      renderLiveUsage(root, liveResult.usage);
     root.querySelector<HTMLSelectElement>('#period')?.addEventListener('change', (event) => {
-      void load(root, Number((event.target as HTMLSelectElement).value) as 1 | 7 | 30);
+      void loadDashboard(root, Number((event.target as HTMLSelectElement).value) as 1 | 7 | 30);
     });
     root
       .querySelector<HTMLButtonElement>('#refresh')
-      ?.addEventListener('click', () => void load(root, days));
+      ?.addEventListener('click', () => void loadDashboard(root, days));
+    void pollLiveUsage(root);
   } catch {
+    if (latestDashboardRequest.get(root) !== startedAt) return;
     root.textContent = '통계를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.';
   }
+}
+
+export async function pollLiveUsage(root: HTMLElement): Promise<void> {
+  const period = root.querySelector<HTMLSelectElement>('#period');
+  if (!period || document.hidden) return;
+  const days = period.value;
+  const startedAt = ++requestSequence;
+  latestLiveRequest.set(root, startedAt);
+  try {
+    const response = await fetch(`/api/live-usage?days=${days}`, { cache: 'no-store' });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const usage = (await response.json()) as Section<UsageMetrics>;
+    if (
+      latestLiveRequest.get(root) === startedAt &&
+      root.querySelector<HTMLSelectElement>('#period')?.value === days
+    ) {
+      latestLiveResult.set(root, { days, sequence: ++requestSequence, usage });
+      renderLiveUsage(root, usage);
+    }
+  } catch {
+    if (
+      latestLiveRequest.get(root) === startedAt &&
+      root.querySelector<HTMLSelectElement>('#period')?.value === days
+    ) {
+      const usage: Section<UsageMetrics> = {
+        status: 'error',
+        message: '실시간 통계를 가져오지 못했습니다.',
+      };
+      latestLiveResult.set(root, { days, sequence: ++requestSequence, usage });
+      renderLiveUsage(root, usage);
+    }
+  }
+}
+
+export function startLiveUsagePolling(root: HTMLElement): () => void {
+  const timer = window.setInterval(() => void pollLiveUsage(root), 15_000);
+  return () => window.clearInterval(timer);
 }
 
 if (typeof document !== 'undefined') {
@@ -223,7 +298,8 @@ if (typeof document !== 'undefined') {
         showPreview(1);
       });
     } else {
-      void load(root, 1);
+      void loadDashboard(root, 1);
+      startLiveUsagePolling(root);
     }
   }
 }

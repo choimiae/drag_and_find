@@ -19,8 +19,12 @@ describe('관리자 Access 인증', () => {
     const api = await admin.fetch(new Request('https://admin.example.test/api/dashboard'), {
       ASSETS: assets,
     });
+    const live = await admin.fetch(new Request('https://admin.example.test/api/live-usage'), {
+      ASSETS: assets,
+    });
     expect(root.status).toBe(403);
     expect(api.status).toBe(403);
+    expect(live.status).toBe(403);
     expect(assets.fetch).not.toHaveBeenCalled();
   });
 

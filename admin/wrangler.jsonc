@@ -13,4 +13,11 @@
     "LOOKUP_WORKER_URL": "https://drag-and-find-lookup.maestro001220.workers.dev",
   },
   "services": [{ "binding": "LOOKUP_SERVICE", "service": "drag-and-find-lookup" }],
+  "d1_databases": [
+    {
+      "binding": "USAGE_DB",
+      "database_name": "drag-and-find-usage",
+      "database_id": "98c62d05-f81c-4602-a341-98d7964df4f6",
+    },
+  ],
 }

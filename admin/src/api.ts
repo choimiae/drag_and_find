@@ -3,6 +3,7 @@ import { getWebStoreMetrics } from './webstore';
 import { getUsageMetrics } from './ga4';
 import { verifyAccess, type AccessEnv } from './access';
 import type { DashboardResponse, Section } from './types';
+import { getLiveUsage, type UsageDatabase } from '../../worker/usage-db';
 
 export interface AdminEnv extends AccessEnv {
   ASSETS: { fetch(request: Request): Promise<Response> };
@@ -12,6 +13,7 @@ export interface AdminEnv extends AccessEnv {
   CWS_PUBLISHER_ID?: string;
   CWS_ITEM_ID?: string;
   GA4_PROPERTY_ID?: string;
+  USAGE_DB?: UsageDatabase;
 }
 
 async function section<T>(run: () => Promise<T>): Promise<Section<T>> {
@@ -28,7 +30,9 @@ export async function handleAdminRequest(
   fetchFn: typeof fetch = fetch,
 ): Promise<Response> {
   const url = new URL(request.url);
-  if (url.pathname !== '/api/dashboard') {
+  const isDashboard = url.pathname === '/api/dashboard';
+  const isLiveUsage = url.pathname === '/api/live-usage';
+  if (!isDashboard && !isLiveUsage) {
     if (url.pathname.startsWith('/api/')) return new Response(null, { status: 404 });
     return env.ASSETS.fetch(request);
   }
@@ -40,7 +44,14 @@ export async function handleAdminRequest(
       { status: 400, headers: { 'Cache-Control': 'no-store' } },
     );
   const days = Number(rawDays) as 1 | 7 | 30;
-  const [store, health, usage] = await Promise.all([
+  const liveUsagePromise = env.USAGE_DB
+    ? section(() => getLiveUsage(env.USAGE_DB!, days))
+    : Promise.resolve({ status: 'connection_required' } as const);
+  if (isLiveUsage)
+    return Response.json(await liveUsagePromise, { headers: { 'Cache-Control': 'no-store' } });
+
+  const [liveUsage, store, health, usage] = await Promise.all([
+    liveUsagePromise,
     env.GOOGLE_SERVICE_ACCOUNT_JSON && env.CWS_PUBLISHER_ID && env.CWS_ITEM_ID
       ? section(() => getWebStoreMetrics(env, days, fetchFn))
       : Promise.resolve({ status: 'connection_required' } as const),
@@ -61,6 +72,7 @@ export async function handleAdminRequest(
     store,
     health,
     usage,
+    liveUsage,
   };
   return Response.json(dashboard, { headers: { 'Cache-Control': 'no-store' } });
 }

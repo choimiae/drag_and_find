@@ -6,6 +6,15 @@
   "secrets": {
     "required": ["NAVER_CLIENT_ID", "NAVER_CLIENT_SECRET"],
   },
+  "d1_databases": [
+    {
+      "binding": "USAGE_DB",
+      "database_name": "drag-and-find-usage",
+      "database_id": "98c62d05-f81c-4602-a341-98d7964df4f6",
+      "migrations_dir": "migrations",
+    },
+  ],
+  "triggers": { "crons": ["0 18 * * *"] },
   "ratelimits": [
     {
       "name": "RATE_LIMITER",

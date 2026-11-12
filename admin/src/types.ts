@@ -28,4 +28,5 @@ export interface DashboardResponse {
   store: Section<StoreMetrics>;
   health: Section<HealthMetrics>;
   usage: Section<UsageMetrics>;
+  liveUsage: Section<UsageMetrics>;
 }

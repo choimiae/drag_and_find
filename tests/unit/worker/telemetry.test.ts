@@ -1,6 +1,9 @@
+// @vitest-environment node
 import { describe, expect, it, vi } from 'vitest';
 import { handleTelemetry } from '../../../worker/telemetry';
 import { createWorkerHandler } from '../../../worker/index';
+import { sqliteUsageDb } from '../sqlite-d1';
+import { getLiveUsage } from '../../../worker/usage-db';
 
 const payload = {
   clientId: '123456789.987654321',
@@ -34,6 +37,76 @@ describe('Worker 통계 이벤트', () => {
     const response = await handleTelemetry(request, env, fetchFn);
 
     expect(response.status).toBe(204);
+    expect(fetchFn).toHaveBeenCalledTimes(1);
+  });
+
+  it('유효한 조회를 D1에 기록하고 GA4에도 전달한다', async () => {
+    const { db } = sqliteUsageDb();
+    const response = await handleTelemetry(
+      new Request('https://lookup.example.test/telemetry', {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      }),
+      { ...env, USAGE_DB: db },
+      vi.fn(async () => new Response(null, { status: 204 })),
+    );
+
+    expect(response.status).toBe(204);
+    expect((await getLiveUsage(db, 1)).completed).toBe(1);
+  });
+
+  it('GA4 전송이 실패해도 D1 실시간 건수는 기록한다', async () => {
+    const { db } = sqliteUsageDb();
+    const response = await handleTelemetry(
+      new Request('https://lookup.example.test/telemetry', {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      }),
+      { ...env, USAGE_DB: db },
+      vi.fn(async () => new Response(null, { status: 503 })),
+    );
+
+    expect(response.status).toBe(502);
+    expect((await getLiveUsage(db, 1)).completed).toBe(1);
+  });
+
+  it('GA4 설정이 누락되어도 D1 실시간 건수는 기록한다', async () => {
+    const { db } = sqliteUsageDb();
+    const fetchFn = vi.fn(async () => new Response(null, { status: 204 }));
+    const response = await handleTelemetry(
+      new Request('https://lookup.example.test/telemetry', {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      }),
+      { RATE_LIMITER: env.RATE_LIMITER, USAGE_DB: db },
+      fetchFn,
+    );
+
+    expect(response.status).toBe(502);
+    expect((await getLiveUsage(db, 1)).completed).toBe(1);
+    expect(fetchFn).not.toHaveBeenCalled();
+  });
+
+  it('D1 쓰기가 실패해도 GA4 전송을 시도한다', async () => {
+    const fetchFn = vi.fn(async () => new Response(null, { status: 204 }));
+    const response = await handleTelemetry(
+      new Request('https://lookup.example.test/telemetry', {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      }),
+      {
+        ...env,
+        USAGE_DB: {
+          prepare() {
+            throw new Error('D1 unavailable');
+          },
+          async batch() {},
+        },
+      },
+      fetchFn,
+    );
+
+    expect(response.status).toBe(502);
     expect(fetchFn).toHaveBeenCalledTimes(1);
   });
 
