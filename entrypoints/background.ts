@@ -7,6 +7,11 @@ import { createLookupMessageHandler } from '../lib/lookup/message-handler';
 import { createLookupService } from '../lib/lookup/service';
 import { createEnglishContextClient, createWorkerProvider } from '../lib/lookup/worker-client';
 import { createShortcutHandler } from '../lib/shortcut';
+import {
+  CONTEXT_LOOKUP_MENU_ID,
+  contextSelectionKey,
+  createContextLookupHandler,
+} from '../lib/context-lookup';
 
 export default defineBackground(() => {
   const workerUrl = import.meta.env.WXT_LOOKUP_API_URL ?? '';
@@ -43,5 +48,28 @@ export default defineBackground(() => {
 
   browser.commands.onCommand.addListener((command, tab) => {
     void handleShortcut(command, tab?.id);
+  });
+
+  browser.runtime.onInstalled.addListener(() => {
+    browser.contextMenus.create({
+      id: CONTEXT_LOOKUP_MENU_ID,
+      title: 'Drag and Find로 찾기',
+      contexts: ['selection'],
+    });
+  });
+
+  const handleContextLookup = createContextLookupHandler({
+    openPanel: (tabId) => browser.sidePanel.open({ tabId }),
+    saveSelection: (tabId, selection) =>
+      browser.storage.session.set({ [contextSelectionKey(tabId)]: selection }),
+  });
+  browser.contextMenus.onClicked.addListener((info, tab) => {
+    if (info.menuItemId !== CONTEXT_LOOKUP_MENU_ID || !info.selectionText) return;
+    void handleContextLookup(info.selectionText, tab?.id).catch(() => {
+      // 패널이 열리지 않는 환경에서도 조회 단어를 외부로 보내지 않는다.
+    });
+  });
+  browser.tabs.onRemoved.addListener((tabId) => {
+    void browser.storage.session.remove(contextSelectionKey(tabId));
   });
 });

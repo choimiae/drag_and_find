@@ -12,7 +12,7 @@ export default defineConfig({
       description:
         '모르는 단어를 드래그하고 아이콘 또는 Alt+Shift+F를 누르면 네이버 백과 또는 위키백과 설명을 보여 줍니다.',
       homepage_url: 'https://github.com/choimiae/drag_and_find',
-      permissions: ['storage'],
+      permissions: ['storage', 'contextMenus', 'sidePanel'],
       host_permissions: [
         ...(workerUrl ? [`${new URL(workerUrl).origin}/*`] : []),
         'https://ko.wikipedia.org/*',
