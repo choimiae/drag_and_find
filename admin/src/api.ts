@@ -1,4 +1,3 @@
-import { getWorkerMetrics } from './cloudflare';
 import { checkLookupHealth } from './health';
 import { getWebStoreMetrics } from './webstore';
 import { getUsageMetrics } from './ga4';
@@ -7,9 +6,6 @@ import type { DashboardResponse, Section } from './types';
 
 export interface AdminEnv extends AccessEnv {
   ASSETS: { fetch(request: Request): Promise<Response> };
-  CF_API_TOKEN?: string;
-  CF_ACCOUNT_ID?: string;
-  CF_SCRIPT_NAME?: string;
   LOOKUP_WORKER_URL?: string;
   LOOKUP_SERVICE?: { fetch: typeof fetch };
   GOOGLE_SERVICE_ACCOUNT_JSON?: string;
@@ -37,27 +33,16 @@ export async function handleAdminRequest(
     return env.ASSETS.fetch(request);
   }
   if (request.method !== 'GET') return new Response(null, { status: 405 });
-  const rawDays = url.searchParams.get('days') ?? '7';
+  const rawDays = url.searchParams.get('days') ?? '1';
   if (rawDays !== '1' && rawDays !== '7' && rawDays !== '30')
     return Response.json(
       { error: 'invalid_period' },
       { status: 400, headers: { 'Cache-Control': 'no-store' } },
     );
   const days = Number(rawDays) as 1 | 7 | 30;
-  const [store, worker, health, usage] = await Promise.all([
+  const [store, health, usage] = await Promise.all([
     env.GOOGLE_SERVICE_ACCOUNT_JSON && env.CWS_PUBLISHER_ID && env.CWS_ITEM_ID
       ? section(() => getWebStoreMetrics(env, days, fetchFn))
-      : Promise.resolve({ status: 'connection_required' } as const),
-    env.CF_API_TOKEN && env.CF_ACCOUNT_ID
-      ? section(() =>
-          getWorkerMetrics(
-            env.CF_API_TOKEN!,
-            env.CF_ACCOUNT_ID!,
-            env.CF_SCRIPT_NAME ?? 'drag-and-find-lookup',
-            days,
-            fetchFn,
-          ),
-        )
       : Promise.resolve({ status: 'connection_required' } as const),
     env.LOOKUP_WORKER_URL
       ? section(() =>
@@ -74,7 +59,6 @@ export async function handleAdminRequest(
   const dashboard: DashboardResponse = {
     days,
     store,
-    worker,
     health,
     usage,
   };

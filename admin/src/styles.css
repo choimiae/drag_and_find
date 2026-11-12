@@ -2,7 +2,7 @@
   font-family:
     -apple-system, BlinkMacSystemFont, 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif;
   color: #1d2129;
-  background: #fafbfc;
+  background: #f7f9fb;
   font-synthesis: none;
 }
 * {
@@ -10,16 +10,62 @@
 }
 body {
   margin: 0;
-  padding: 24px;
+}
+.admin-loading {
+  display: flex;
+  min-height: 100vh;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+}
+.admin-loading-dots {
+  display: flex;
+  height: 24px;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+}
+.admin-loading-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #1a73e8;
+  animation: admin-loading-bounce 1.2s ease-in-out infinite;
+}
+.admin-loading-dot:nth-child(2) {
+  background: #0bad9b;
+  animation-delay: 150ms;
+}
+.admin-loading-dot:nth-child(3) {
+  background: #03c75a;
+  animation-delay: 300ms;
+}
+.admin-loading-label {
+  color: #5f6b7a;
+  font-size: 12px;
+}
+@keyframes admin-loading-bounce {
+  0%,
+  70%,
+  100% {
+    transform: translateY(0);
+    opacity: 0.5;
+  }
+  35% {
+    transform: translateY(-6px);
+    opacity: 1;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .admin-loading-dot {
+    animation: none;
+    opacity: 1;
+  }
 }
 .dashboard {
-  max-width: 1280px;
-  margin: 0 auto;
-  background: #fff;
-  border: 1px solid #e3e6ea;
-  border-radius: 12px;
-  box-shadow: 0 8px 24px rgba(20, 30, 50, 0.12);
-  overflow: hidden;
+  min-height: 100vh;
+  background: #f7f9fb;
 }
 .preview-banner {
   padding: 8px 24px;
@@ -29,14 +75,17 @@ body {
   font-weight: 700;
 }
 .dashboard-header {
-  border-top: 4px solid transparent;
-  border-image: linear-gradient(90deg, #03c75a, #1a73e8) 1;
+  border-bottom: 1px solid #e3e6ea;
+  background: #fff;
+}
+.dashboard-header-inner {
+  max-width: 1220px;
+  margin: 0 auto;
   display: flex;
   justify-content: space-between;
   align-items: center;
   gap: 16px;
-  padding: 19px 24px;
-  border-bottom: 1px solid #eef0f2;
+  padding: 22px 24px;
 }
 .brand {
   display: flex;
@@ -87,9 +136,6 @@ h1 {
   gap: 9px;
   font-size: 11px;
 }
-.toolbar .muted {
-  color: #5f6b7a;
-}
 .toolbar label {
   font-size: 0;
 }
@@ -112,14 +158,16 @@ h1 {
   cursor: pointer;
 }
 .dashboard main {
-  padding: 21px 24px 25px;
-  background: #fafbfc;
+  max-width: 1220px;
+  margin: 0 auto;
+  padding: 27px 24px 45px;
+  background: #f7f9fb;
 }
 .section-heading {
   display: flex;
   justify-content: space-between;
   align-items: end;
-  margin-bottom: 11px;
+  margin-bottom: 12px;
 }
 .section-heading h2,
 .details-heading {
@@ -133,23 +181,27 @@ h1 {
 .metrics {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 11px;
+  overflow: hidden;
+  border: 1px solid #e3e6ea;
+  border-radius: 14px;
+  background: #fff;
+  box-shadow: 0 2px 7px rgba(34, 51, 75, 0.035);
 }
 .metric,
 .panel,
 .detail-card {
   min-width: 0;
-  border: 1px solid #e3e6ea;
-  border-radius: 12px;
   background: #fff;
-  box-shadow: 0 3px 10px rgba(20, 30, 50, 0.04);
 }
 .metric {
-  padding: 15px 16px 13px;
+  min-height: 116px;
+  padding: 20px 23px 19px;
+}
+.metric + .metric {
+  border-left: 1px solid #edf0f3;
 }
 .metric-highlight {
   background: #f3f8ff;
-  border-color: #d6e6fd;
 }
 .metric span,
 .metric small {
@@ -171,12 +223,15 @@ h1 {
 }
 .middle {
   display: grid;
-  grid-template-columns: minmax(0, 2fr) minmax(260px, 1fr);
-  gap: 11px;
-  margin-top: 11px;
+  grid-template-columns: minmax(0, 1.8fr) minmax(270px, 1fr);
+  gap: 16px;
+  margin-top: 18px;
 }
 .panel {
-  padding: 17px 18px;
+  padding: 21px 23px;
+  border: 1px solid #e3e6ea;
+  border-radius: 14px;
+  box-shadow: 0 2px 7px rgba(34, 51, 75, 0.035);
 }
 .panel h2 {
   font-size: 13px;
@@ -195,6 +250,12 @@ h1 {
   padding: 15px 7px 0;
   color: #5f6b7a;
   font-size: 11px;
+}
+.chart-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
 }
 .chart-axis {
   display: flex;
@@ -304,15 +365,17 @@ h1 {
   color: #5f6b7a;
 }
 .details-heading {
-  margin: 22px 0 10px;
+  margin: 28px 0 12px;
 }
 .details {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 11px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
 }
 .detail-card {
-  padding: 15px 16px;
+  padding: 21px 23px;
+  border: 1px solid #e3e6ea;
+  border-radius: 14px;
 }
 .detail-card .detail-row:first-of-type {
   border-top: 0;
@@ -322,8 +385,9 @@ h1 {
   color: #5f6b7a;
   margin-top: 12px;
 }
-.checked-at {
-  margin-top: 10px;
+.dashboard-footer {
+  margin-top: 20px;
+  text-align: right;
   color: #5f6b7a;
   font-size: 10px;
 }
@@ -331,30 +395,35 @@ h1 {
   .metrics {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+  .metric:nth-child(3) {
+    border-left: 0;
+  }
+  .metric:nth-child(n + 3) {
+    border-top: 1px solid #edf0f3;
+  }
   .middle,
   .details {
     grid-template-columns: 1fr;
   }
 }
 @media (max-width: 540px) {
-  body {
-    padding: 0;
-  }
-  .dashboard {
-    border-radius: 0;
-  }
-  .dashboard-header {
+  .dashboard-header-inner {
     align-items: flex-start;
     flex-direction: column;
   }
   .toolbar {
     flex-wrap: wrap;
   }
+  .dashboard-header-inner,
+  .dashboard main {
+    padding-right: 16px;
+    padding-left: 16px;
+  }
   .dashboard main {
     padding: 16px;
   }
-  .metrics {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+  .metric {
+    padding: 16px;
   }
   .section-heading {
     display: block;
@@ -372,28 +441,38 @@ h1 {
     background: #1b2026;
   }
   .dashboard,
+  .metrics,
   .metric,
   .panel,
   .detail-card {
     background: #1f242b;
     border-color: #2f3640;
   }
+  .dashboard {
+    background: #1b2026;
+  }
   .dashboard main {
     background: #1b2026;
+  }
+  .dashboard-header {
+    background: #1f242b;
   }
   .dashboard-header,
   .detail-head,
   .detail-row {
     border-color: #2a3038;
   }
+  .metric + .metric {
+    border-color: #2a3038;
+  }
   .brand p,
-  .toolbar .muted,
+  .admin-loading-label,
+  .dashboard-footer,
   .section-heading p,
   .metric span,
   .metric small,
   .detail-row span,
   .section-message,
-  .checked-at,
   .chart {
     color: #9aa4b1;
   }

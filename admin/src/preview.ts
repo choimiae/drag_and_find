@@ -30,7 +30,6 @@ export function previewDashboard(days: 1 | 7 | 30): DashboardResponse {
       updatedAt,
       data: { installs: 76, uninstalls: 9, users: 412, impressions: 3100, pageViews: 2430 },
     },
-    worker: { status: 'ready', updatedAt, data: { requests: 1318, errors: 3 } },
     health: { status: 'ready', updatedAt, data: { httpStatus: 200, latencyMs: 420 } },
   };
 }

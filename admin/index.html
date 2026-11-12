@@ -7,7 +7,16 @@
     <link rel="stylesheet" href="./src/styles.css" />
   </head>
   <body>
-    <div id="app">통계를 불러오는 중입니다.</div>
+    <div id="app">
+      <div class="admin-loading" role="status">
+        <span class="admin-loading-dots" aria-hidden="true">
+          <span class="admin-loading-dot"></span>
+          <span class="admin-loading-dot"></span>
+          <span class="admin-loading-dot"></span>
+        </span>
+        <span class="admin-loading-label">통계를 불러오고 있어요</span>
+      </div>
+    </div>
     <script type="module" src="./src/main.ts"></script>
   </body>
 </html>

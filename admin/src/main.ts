@@ -47,12 +47,6 @@ function showSection<T>(
         : '통계를 가져오지 못했습니다.');
     card.append(message);
   }
-  if ('updatedAt' in section && section.updatedAt) {
-    const checked = document.createElement('p');
-    checked.className = 'checked-at';
-    checked.textContent = `마지막 확인 ${new Date(section.updatedAt).toLocaleString('ko-KR')}`;
-    card.append(checked);
-  }
   parent.append(card);
 }
 
@@ -60,8 +54,10 @@ export function renderDashboard(root: HTMLElement, dashboard: DashboardResponse)
   root.innerHTML = `
     <div class="dashboard">
       <header class="dashboard-header">
-        <div class="brand"><svg class="brand-icon" viewBox="0 0 128 128" aria-hidden="true"><defs><linearGradient id="brand-gradient" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#03c75a"/><stop offset="1" stop-color="#1a73e8"/></linearGradient></defs><circle cx="64" cy="64" r="64" fill="url(#brand-gradient)"/><g transform="translate(31 31) scale(2.75)" fill="none" stroke="#fff" stroke-width="2.6" stroke-linecap="round"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.5 15.5 21 21"/></g></svg><div><h1>Drag and Find <span class="badge">관리자</span></h1><p>설치·사용·Worker 상태를 한눈에</p></div></div>
-        <div class="toolbar"><span id="updated" class="muted"></span><label>기간 <select id="period"><option value="1">오늘</option><option value="7">최근 7일</option><option value="30">최근 30일</option></select></label><button id="refresh" type="button">새로고침</button></div>
+        <div class="dashboard-header-inner">
+          <div class="brand"><svg class="brand-icon" viewBox="0 0 128 128" aria-hidden="true"><defs><linearGradient id="brand-gradient" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#03c75a"/><stop offset="1" stop-color="#1a73e8"/></linearGradient></defs><circle cx="64" cy="64" r="64" fill="url(#brand-gradient)"/><g transform="translate(31 31) scale(2.75)" fill="none" stroke="#fff" stroke-width="2.6" stroke-linecap="round"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.5 15.5 21 21"/></g></svg><div><h1>Drag and Find <span class="badge">관리자</span></h1><p>설치·사용·Worker 상태를 한눈에</p></div></div>
+          <div class="toolbar"><label>기간 <select id="period"><option value="1">오늘</option><option value="7">최근 7일</option><option value="30">최근 30일</option></select></label><button id="refresh" type="button">새로고침</button></div>
+        </div>
       </header>
       <main>
         <div class="section-heading"><h2>현황</h2><p>조회 사용 설치 수는 사람 수와 다를 수 있습니다</p></div>
@@ -69,13 +65,14 @@ export function renderDashboard(root: HTMLElement, dashboard: DashboardResponse)
           <section class="metric metric-highlight"><span>조회 사용 설치 수</span><strong id="active-installs"></strong><small>확장 사용 · GA4</small></section>
           <section class="metric"><span>단어 조회 건수</span><strong id="lookups"></strong><small>확장 사용 · GA4</small></section>
           <section class="metric"><span>웹스토어 설치</span><strong id="installs"></strong><small>Chrome Web Store</small></section>
-          <section class="metric"><span>Worker 오류</span><strong id="worker-errors"></strong><small>Cloudflare</small></section>
+          <section class="metric"><span>조회 실패</span><strong id="lookup-failures"></strong><small>확장 사용 · GA4</small></section>
         </div>
         <div class="middle">
           <section class="panel chart-panel"><h2>일별 조회 추이</h2><p class="chart-description">조회 완료 건수</p><div id="chart" class="chart"></div></section>
           <section class="panel health-panel"><div class="detail-head"><h2>Worker 현재 상태</h2><span id="health-badge" class="badge"></span></div><strong id="latency" class="latency"></strong><p>실제 단어 조회 응답 시간</p><div id="health-details"></div></section>
         </div>
         <h2 class="details-heading">출처별 상세</h2><div id="details" class="details"></div>
+        <footer class="dashboard-footer" id="last-checked"></footer>
       </main>
     </div>`;
 
@@ -96,8 +93,8 @@ export function renderDashboard(root: HTMLElement, dashboard: DashboardResponse)
     sectionValue(dashboard.store, (data) => data.installs),
   );
   set(
-    'worker-errors',
-    sectionValue(dashboard.worker, (data) => data.errors),
+    'lookup-failures',
+    sectionValue(dashboard.usage, (data) => data.failed),
   );
   set(
     'latency',
@@ -109,19 +106,13 @@ export function renderDashboard(root: HTMLElement, dashboard: DashboardResponse)
       ? '정상'
       : '확인 필요',
   );
-  set(
-    'updated',
-    `화면 갱신 ${new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })}`,
-  );
+  set('last-checked', `마지막 확인 ${new Date().toLocaleString('ko-KR')}`);
   const period = root.querySelector<HTMLSelectElement>('#period');
   if (period) period.value = String(dashboard.days);
 
   const healthDetails = root.querySelector<HTMLElement>('#health-details');
   if (healthDetails && dashboard.health.status === 'ready') {
     healthDetails.append(detail('HTTP 상태', String(dashboard.health.data.httpStatus)));
-    healthDetails.append(
-      detail('확인 시각', new Date(dashboard.health.updatedAt).toLocaleTimeString('ko-KR')),
-    );
   }
   const chart = root.querySelector<HTMLElement>('#chart');
   if (chart) {
@@ -170,6 +161,7 @@ export function renderDashboard(root: HTMLElement, dashboard: DashboardResponse)
       plot.append(columns);
       chart.append(axis, plot);
     } else {
+      chart.classList.add('chart-empty');
       chart.textContent =
         dashboard.usage.status === 'connection_required'
           ? '확장 사용량 연결 후 표시됩니다.'
@@ -190,10 +182,6 @@ export function renderDashboard(root: HTMLElement, dashboard: DashboardResponse)
     ['페이지 조회', (data) => data.pageViews],
     ['노출', (data) => data.impressions],
     ['스토어 일일 이용자', (data) => data.users],
-  ]);
-  showSection(details, 'Cloudflare Worker', dashboard.worker, [
-    ['전체 요청', (data) => data.requests],
-    ['오류', (data) => data.errors],
   ]);
 }
 
@@ -232,10 +220,10 @@ if (typeof document !== 'undefined') {
             .querySelector<HTMLButtonElement>('#refresh')
             ?.addEventListener('click', () => showPreview(days));
         };
-        showPreview(7);
+        showPreview(1);
       });
     } else {
-      void load(root, 7);
+      void load(root, 1);
     }
   }
 }

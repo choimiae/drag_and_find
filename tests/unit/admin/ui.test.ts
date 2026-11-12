@@ -9,11 +9,6 @@ const dashboard: DashboardResponse = {
     updatedAt: '2026-11-10T04:00:00.000Z',
     data: { installs: 76, uninstalls: 9, users: 412, impressions: 3100, pageViews: 2430 },
   },
-  worker: {
-    status: 'ready',
-    updatedAt: '2026-11-10T04:00:00.000Z',
-    data: { requests: 1318, errors: 3 },
-  },
   health: {
     status: 'ready',
     updatedAt: '2026-11-10T04:00:00.000Z',
@@ -39,13 +34,40 @@ describe('관리자 대시보드', () => {
     expect(root.textContent).not.toContain('128');
   });
 
-  it('스토어 이용자 수를 일일 수치로 표시하고 출처별 확인 시각을 보여 준다', () => {
+  it('스토어 이용자 수를 일일 수치로 표시하고 확인 시각은 하단 한 곳에 둔다', () => {
     const root = document.querySelector<HTMLElement>('#app')!;
 
-    renderDashboard(root, dashboard);
+    renderDashboard(root, {
+      ...dashboard,
+      usage: {
+        status: 'ready',
+        updatedAt: '2026-11-10T04:00:00.000Z',
+        data: { activeInstalls: 12, completed: 8, failed: 2, daily: [] },
+      },
+    });
 
     expect(root.textContent).toContain('스토어 일일 이용자');
-    expect(root.textContent).toContain('마지막 확인');
+    expect(root.querySelector('main > footer')?.textContent).toContain('마지막 확인');
+    expect(root.textContent?.match(/마지막 확인/g)).toHaveLength(1);
+    expect(root.textContent).not.toContain('확인 시각');
+  });
+
+  it('관리자 상태 확인이 섞이는 Worker 합계 대신 확장 조회 실패를 표시한다', () => {
+    const root = document.querySelector<HTMLElement>('#app')!;
+
+    renderDashboard(root, {
+      ...dashboard,
+      usage: {
+        status: 'ready',
+        updatedAt: '2026-11-10T04:00:00.000Z',
+        data: { activeInstalls: 12, completed: 8, failed: 2, daily: [] },
+      },
+    });
+
+    expect(root.querySelector('#lookup-failures')?.textContent).toBe('2');
+    expect(root.textContent).not.toContain('Cloudflare Worker');
+    expect(root.textContent).not.toContain('전체 요청');
+    expect(root.textContent).toContain('Worker 현재 상태');
   });
 
   it('일별 조회를 값 눈금과 기준선이 있는 그래프로 표시한다', () => {

@@ -11,11 +11,6 @@ export interface StoreMetrics {
   pageViews: number;
 }
 
-export interface WorkerMetrics {
-  requests: number;
-  errors: number;
-}
-
 export interface HealthMetrics {
   httpStatus: number;
   latencyMs: number;
@@ -31,7 +26,6 @@ export interface UsageMetrics {
 export interface DashboardResponse {
   days: 1 | 7 | 30;
   store: Section<StoreMetrics>;
-  worker: Section<WorkerMetrics>;
   health: Section<HealthMetrics>;
   usage: Section<UsageMetrics>;
 }
