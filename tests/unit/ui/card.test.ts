@@ -112,6 +112,71 @@ describe('renderCard', () => {
     expect(part('license-link')).toBeNull();
   });
 
+  it('does not make an unexpected Naver host clickable as an original source', () => {
+    renderCard(
+      card,
+      '온보딩',
+      {
+        kind: 'result',
+        result: {
+          status: 'found',
+          source: 'naver',
+          title: '온보딩',
+          extract: '설명',
+          url: 'https://terms.naver.com.attacker.test/entry.naver?docId=1',
+          isDisambiguation: false,
+        },
+      },
+      handlers,
+    );
+
+    expect(part('source-links')?.querySelectorAll('a')).toHaveLength(0);
+  });
+
+  it('does not make a script URL clickable as a Wikipedia source', () => {
+    renderCard(
+      card,
+      '온보딩',
+      {
+        kind: 'result',
+        result: {
+          status: 'found',
+          source: 'wikipedia',
+          title: '온보딩',
+          extract: '설명',
+          url: 'javascript:alert(1)',
+          isDisambiguation: false,
+        },
+      },
+      handlers,
+    );
+
+    expect(part('source-links')?.querySelectorAll('a')).toHaveLength(0);
+  });
+
+  it('omits a related result link outside the source host', () => {
+    renderCard(
+      card,
+      '온보딩',
+      {
+        kind: 'result',
+        result: {
+          status: 'not_found',
+          related: {
+            source: 'naver',
+            title: '온보딩',
+            extract: '설명',
+            url: 'https://attacker.test/entry.naver?docId=1',
+            isDisambiguation: false,
+          },
+        },
+      },
+      handlers,
+    );
+
+    expect(part('related-link')).toBeNull();
+  });
+
   it('groups the Naver original and Wikipedia alternative into one compact source row', () => {
     renderCard(
       card,
@@ -144,7 +209,7 @@ describe('renderCard', () => {
     expect(links.map((link) => link.textContent)).toEqual(['네이버 백과 ↗', '위키백과 ↗']);
     expect(links.map((link) => link.getAttribute('href'))).toEqual([
       'https://terms.naver.com/entry.naver?docId=1',
-      'https://ko.wikipedia.org/wiki/인공지능',
+      'https://ko.wikipedia.org/wiki/%EC%9D%B8%EA%B3%B5%EC%A7%80%EB%8A%A5',
     ]);
     expect(links.every((link) => link.target === '_blank')).toBe(true);
   });

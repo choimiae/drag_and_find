@@ -1,3 +1,5 @@
+import { readLimitedBody } from './body';
+
 interface TelemetryEnv {
   GA4_MEASUREMENT_ID?: string;
   GA4_API_SECRET?: string;
@@ -13,10 +15,15 @@ export async function handleTelemetry(
 ): Promise<Response> {
   if (!env.GA4_MEASUREMENT_ID || !env.GA4_API_SECRET) return new Response(null, { status: 503 });
 
+  if (env.RATE_LIMITER) {
+    const ip = request.headers.get('CF-Connecting-IP') ?? 'unknown';
+    const allowed = await env.RATE_LIMITER.limit({ key: `telemetry:${ip}` });
+    if (!allowed.success) return new Response(null, { status: 429 });
+  }
+
   let body: Record<string, unknown>;
   try {
-    const raw = await request.text();
-    if (raw.length > 500) throw new Error('too large');
+    const raw = await readLimitedBody(request, 500);
     const parsed: unknown = JSON.parse(raw);
     if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed))
       throw new Error('invalid body');
@@ -35,12 +42,6 @@ export async function handleTelemetry(
     !/^[0-9A-Za-z][0-9A-Za-z.+-]{0,31}$/.test(body.version)
   )
     return new Response(null, { status: 400 });
-
-  if (env.RATE_LIMITER) {
-    const ip = request.headers.get('CF-Connecting-IP') ?? 'unknown';
-    const allowed = await env.RATE_LIMITER.limit({ key: `telemetry:${ip}` });
-    if (!allowed.success) return new Response(null, { status: 429 });
-  }
 
   const url = new URL('https://www.google-analytics.com/mp/collect');
   url.searchParams.set('measurement_id', env.GA4_MEASUREMENT_ID);

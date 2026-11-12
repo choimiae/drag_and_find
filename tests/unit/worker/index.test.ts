@@ -195,6 +195,64 @@ describe('createWorkerHandler', () => {
     expect(response.status).toBe(400);
   });
 
+  it('stops reading an oversized English context body as soon as the limit is crossed', async () => {
+    let canceled = false;
+    const body = new ReadableStream<Uint8Array>(
+      {
+        start(controller) {
+          controller.enqueue(new TextEncoder().encode('x'.repeat(4001)));
+        },
+        cancel() {
+          canceled = true;
+        },
+      },
+      { highWaterMark: 0 },
+    );
+    const handler = createWorkerHandler(env, async () => {
+      throw new Error('unexpected external request');
+    });
+    const response = await handler(
+      new Request('https://worker.example/english-context', {
+        method: 'POST',
+        body,
+        duplex: 'half',
+      } as RequestInit & { duplex: 'half' }),
+    );
+
+    expect(response.status).toBe(400);
+    expect(canceled).toBe(true);
+  });
+
+  it('rate limits English context before reading its body', async () => {
+    let readCount = 0;
+    const body = new ReadableStream<Uint8Array>(
+      {
+        pull(controller) {
+          readCount += 1;
+          controller.enqueue(new TextEncoder().encode('{"titles":["관리"]}'));
+          controller.close();
+        },
+      },
+      { highWaterMark: 0 },
+    );
+    const handler = createWorkerHandler(
+      { ...env, RATE_LIMITER: { limit: async () => ({ success: false }) } },
+      async () => {
+        throw new Error('unexpected external request');
+      },
+    );
+    const response = await handler(
+      new Request('https://worker.example/english-context', {
+        method: 'POST',
+        body,
+        duplex: 'half',
+      } as RequestInit & { duplex: 'half' }),
+    );
+
+    expect(response.status).toBe(429);
+    expect(readCount).toBe(0);
+  });
+
   it('uses Wikipedia when Naver reaches its call limit', async () => {
     const urls: string[] = [];
     const handler = createWorkerHandler(env, async (url) => {

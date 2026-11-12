@@ -77,6 +77,56 @@ describe('Worker 통계 이벤트', () => {
     expect(fetchFn).not.toHaveBeenCalled();
   });
 
+  it('본문을 읽기 전에 요청 제한을 적용한다', async () => {
+    let readCount = 0;
+    const body = new ReadableStream<Uint8Array>(
+      {
+        pull(controller) {
+          readCount += 1;
+          controller.enqueue(new TextEncoder().encode(JSON.stringify(payload)));
+          controller.close();
+        },
+      },
+      { highWaterMark: 0 },
+    );
+    const request = new Request('https://lookup.example.test/telemetry', {
+      method: 'POST',
+      body,
+      duplex: 'half',
+    } as RequestInit & { duplex: 'half' });
+    const limited = { ...env, RATE_LIMITER: { limit: async () => ({ success: false }) } };
+
+    const response = await handleTelemetry(request, limited);
+
+    expect(response.status).toBe(429);
+    expect(readCount).toBe(0);
+  });
+
+  it('본문이 500바이트를 넘으면 스트림 읽기를 중단한다', async () => {
+    let canceled = false;
+    const body = new ReadableStream<Uint8Array>(
+      {
+        start(controller) {
+          controller.enqueue(new TextEncoder().encode('x'.repeat(501)));
+        },
+        cancel() {
+          canceled = true;
+        },
+      },
+      { highWaterMark: 0 },
+    );
+    const request = new Request('https://lookup.example.test/telemetry', {
+      method: 'POST',
+      body,
+      duplex: 'half',
+    } as RequestInit & { duplex: 'half' });
+
+    const response = await handleTelemetry(request, env);
+
+    expect(response.status).toBe(400);
+    expect(canceled).toBe(true);
+  });
+
   it('조회 Worker의 /telemetry 경로에서 처리한다', async () => {
     const fetchFn = vi.fn(async () => new Response(null, { status: 204 }));
     const handler = createWorkerHandler(

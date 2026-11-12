@@ -79,6 +79,22 @@ describe('createNaverProvider', () => {
     expect(result).toEqual({ status: 'not_found' });
   });
 
+  it('rejects an encyclopedia result that points outside the Naver terms host', async () => {
+    const result = await createNaverProvider(credentials, async () =>
+      Response.json({
+        items: [
+          {
+            title: '온보딩',
+            description: '신입 직원의 적응',
+            link: 'https://terms.naver.com.attacker.test/entry.naver?docId=1',
+          },
+        ],
+      }),
+    ).lookup('온보딩');
+
+    expect(result).toEqual({ status: 'not_found' });
+  });
+
   it('reports a 429 as rate_limited', async () => {
     const result = await createNaverProvider(
       credentials,

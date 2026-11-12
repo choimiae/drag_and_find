@@ -7,6 +7,7 @@ import type {
 } from '../lookup/types';
 import { searchUrl, type SearchEngine } from '../search-urls';
 import { MAX_QUERY_LENGTH } from '../selection';
+import { safeSourceUrl } from '../lookup/source-url';
 
 export type CardState =
   { kind: 'loading' } | { kind: 'result'; result: LookupResult } | { kind: 'too_long' };
@@ -182,6 +183,7 @@ function bodyContent(doc: Document, state: CardState, handlers: CardHandlers): N
       }
 
       const related = result.related;
+      const relatedUrl = safeSourceUrl(related.source, related.url);
 
       return [
         message(doc, '정확히 일치하는 설명은 찾지 못했습니다.'),
@@ -191,7 +193,9 @@ function bodyContent(doc: Document, state: CardState, handlers: CardHandlers): N
           role: 'related-extract',
           text: related.extract,
         }),
-        externalLink(doc, related.url, '네이버 백과에서 보기 →', 'related-link', 'card-link'),
+        ...(relatedUrl
+          ? [externalLink(doc, relatedUrl, '네이버 백과에서 보기 →', 'related-link', 'card-link')]
+          : []),
         element(doc, 'p', {
           className: 'card-attribution',
           role: 'attribution',
@@ -508,11 +512,12 @@ function message(doc: Document, text: string): HTMLElement {
 
 function alternativeLinks(doc: Document, result: FoundResult): HTMLElement[] {
   return (result.alternatives ?? []).flatMap((alternative) => {
-    if (!alternative.url.startsWith('https://')) return [];
+    const safeUrl = safeSourceUrl(alternative.source, alternative.url);
+    if (!safeUrl) return [];
     return [
       externalLink(
         doc,
-        alternative.url,
+        safeUrl,
         `${sourceName(alternative.source)} ↗`,
         'alternative-link',
         'card-source-link',
@@ -537,9 +542,12 @@ function sourceLinksRow(doc: Document, result: FoundResult): HTMLElement {
 
 function sourceLink(doc: Document, result: FoundResult): HTMLElement {
   const wikipedia = result.source === undefined || result.source === 'wikipedia';
+  const safeUrl = safeSourceUrl(result.source, result.url);
+  if (!safeUrl)
+    return element(doc, 'span', { className: 'card-source-unavailable', text: '링크 확인 불가' });
   return externalLink(
     doc,
-    result.url,
+    safeUrl,
     `${sourceName(result.source)} ↗`,
     wikipedia ? 'wiki-link' : 'source-link',
     'card-source-link',

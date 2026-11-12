@@ -1,4 +1,5 @@
 import { stripTags } from '../lib/lookup/html-text';
+import { safeSourceUrl } from '../lib/lookup/source-url';
 import type { FetchFn } from '../lib/lookup/wikipedia';
 import type { LookupProvider, LookupResult } from '../lib/lookup/types';
 
@@ -75,7 +76,7 @@ export function createNaverProvider(
 
         const title = stripTags(item.title);
         const extract = stripTags(item.description);
-        const url = safeUrl(item.link);
+        const url = safeSourceUrl('naver', item.link);
 
         if (!url) {
           return { status: 'not_found' };
@@ -115,13 +116,4 @@ export function createNaverProvider(
  */
 function normalizeTitle(value: string): string {
   return value.normalize('NFKC').replace(/\s+/gu, '').toLowerCase();
-}
-
-function safeUrl(raw: string): string | null {
-  try {
-    const url = new URL(raw);
-    return url.protocol === 'https:' ? url.href : null;
-  } catch {
-    return null;
-  }
 }

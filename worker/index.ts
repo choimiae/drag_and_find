@@ -5,6 +5,7 @@ import { createWikidataProvider } from './wikidata';
 import { lookupSources } from './lookup';
 import { fetchEnglishExtracts, MAX_ENGLISH_CONTEXT_TITLES } from '../lib/lookup/wikipedia-context';
 import { handleTelemetry } from './telemetry';
+import { readLimitedBody } from './body';
 
 interface RateLimiter {
   limit(options: { key: string }): Promise<{ success: boolean }>;
@@ -46,10 +47,14 @@ export function createWorkerHandler(
       return handleTelemetry(request, env, fetchFn);
     }
     if (request.method === 'POST' && url.pathname === '/english-context') {
+      if (env.RATE_LIMITER) {
+        const ip = request.headers.get('CF-Connecting-IP') ?? 'unknown';
+        const allowed = await env.RATE_LIMITER.limit({ key: ip });
+        if (!allowed.success) return Response.json({ status: 'rate_limited' }, { status: 429 });
+      }
       let titles: string[];
       try {
-        const raw = await request.text();
-        if (raw.length > 4000) throw new Error('body too large');
+        const raw = await readLimitedBody(request, 4000);
         const body: unknown = JSON.parse(raw);
         if (
           typeof body !== 'object' ||
@@ -72,11 +77,6 @@ export function createWorkerHandler(
         titles = body.titles;
       } catch {
         return Response.json({ error: 'invalid_titles' }, { status: 400 });
-      }
-      if (env.RATE_LIMITER) {
-        const ip = request.headers.get('CF-Connecting-IP') ?? 'unknown';
-        const allowed = await env.RATE_LIMITER.limit({ key: ip });
-        if (!allowed.success) return Response.json({ status: 'rate_limited' }, { status: 429 });
       }
       const extracts = await fetchEnglishExtracts(
         [...new Set(titles)],
