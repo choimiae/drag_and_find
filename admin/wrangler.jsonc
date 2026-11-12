@@ -13,4 +13,5 @@
     "CF_SCRIPT_NAME": "drag-and-find-lookup",
     "LOOKUP_WORKER_URL": "https://drag-and-find-lookup.maestro001220.workers.dev",
   },
+  "services": [{ "binding": "LOOKUP_SERVICE", "service": "drag-and-find-lookup" }],
 }

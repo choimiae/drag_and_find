@@ -3,7 +3,7 @@
   "description": "드래그한 단어의 네이버 백과 또는 위키백과 설명을 보여 주는 크롬 확장",
   "private": true,
   "license": "MIT",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "type": "module",
   "scripts": {
     "dev": "wxt",

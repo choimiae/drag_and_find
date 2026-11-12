@@ -20,14 +20,15 @@
 
 ## 3. 관리자 Worker 연결
 
-`admin/wrangler.jsonc`의 `vars`에 `CF_ACCOUNT_ID`, `CWS_PUBLISHER_ID`, `CWS_ITEM_ID`, `GA4_PROPERTY_ID`, `ACCESS_TEAM_DOMAIN`, `ACCESS_AUD`, `ADMIN_EMAIL`을 실제 값으로 지정한다. `ACCESS_TEAM_DOMAIN`은 `https://<팀이름>.cloudflareaccess.com`, `ACCESS_AUD`는 관리자 Access 애플리케이션의 Audience 태그, `ADMIN_EMAIL`은 허용할 소유자 이메일이다. 이 값들은 비밀키가 아니다. 조회 Worker 이름과 URL이 다르면 `CF_SCRIPT_NAME`, `LOOKUP_WORKER_URL`도 수정한다. 비밀값은 Wrangler Secret 또는 Cloudflare 대시보드의 Secrets에 등록한다.
+계정별 설정은 저장소에 기록하지 않는다. 관리자 Worker를 만든 뒤 Cloudflare 대시보드의 **Settings → Variables and Secrets**에서 아래 이름으로 직접 등록한다.
+ID와 이메일은 인증 키가 아니지만 공개 저장소에 넣지 않도록 Secret 유형을 사용한다. `ACCESS_TEAM_DOMAIN`은 `https://<팀이름>.cloudflareaccess.com`, `ACCESS_AUD`는 관리자 Access 애플리케이션의 Audience 태그, `ADMIN_EMAIL`은 허용할 소유자 이메일이다. 조회 Worker 이름과 URL이 다르면 공개 설정인 `admin/wrangler.jsonc`의 `CF_SCRIPT_NAME`, `LOOKUP_WORKER_URL`을 수정한다.
 
 | Worker | Secret |
 | --- | --- |
 | 조회 Worker | `NAVER_CLIENT_ID`, `NAVER_CLIENT_SECRET`, `GA4_MEASUREMENT_ID`, `GA4_API_SECRET` |
-| 관리자 Worker | `CF_API_TOKEN`, `GOOGLE_SERVICE_ACCOUNT_JSON` |
+| 관리자 Worker | `CF_ACCOUNT_ID`, `CWS_PUBLISHER_ID`, `CWS_ITEM_ID`, `GA4_PROPERTY_ID`, `ACCESS_TEAM_DOMAIN`, `ACCESS_AUD`, `ADMIN_EMAIL`, `CF_API_TOKEN`, `GOOGLE_SERVICE_ACCOUNT_JSON` |
 
-로컬 개발에는 버전 관리에서 제외된 `admin/.dev.vars`와 `worker/.dev.vars`를 사용한다. 서비스 계정 JSON 전체는 `GOOGLE_SERVICE_ACCOUNT_JSON` Secret에 넣는다. 비밀값을 코드, 문서, 커밋, 클라이언트 빌드에 넣지 않는다.
+서비스 계정 JSON 전체는 `GOOGLE_SERVICE_ACCOUNT_JSON` Secret에 넣는다. 값은 소유자가 Cloudflare 화면에서 직접 입력하고, 채팅이나 에이전트 도구 출력으로 전달하지 않는다. Wrangler 재배포는 등록된 Secret을 삭제하지 않는다. 로컬 개발에는 버전 관리에서 제외된 `admin/.dev.vars`와 `worker/.dev.vars`를 사용할 수 있지만, 다른 사람이 그 파일을 읽을 수 있는 환경에서는 만들지 않는다. 계정별 값과 비밀키를 코드, 문서, 커밋, 클라이언트 빌드에 넣지 않는다.
 
 ```bash
 pnpm admin:build

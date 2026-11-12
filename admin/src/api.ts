@@ -11,6 +11,7 @@ export interface AdminEnv extends AccessEnv {
   CF_ACCOUNT_ID?: string;
   CF_SCRIPT_NAME?: string;
   LOOKUP_WORKER_URL?: string;
+  LOOKUP_SERVICE?: { fetch: typeof fetch };
   GOOGLE_SERVICE_ACCOUNT_JSON?: string;
   CWS_PUBLISHER_ID?: string;
   CWS_ITEM_ID?: string;
@@ -59,7 +60,12 @@ export async function handleAdminRequest(
         )
       : Promise.resolve({ status: 'connection_required' } as const),
     env.LOOKUP_WORKER_URL
-      ? section(() => checkLookupHealth(env.LOOKUP_WORKER_URL!, fetchFn))
+      ? section(() =>
+          checkLookupHealth(
+            env.LOOKUP_WORKER_URL!,
+            env.LOOKUP_SERVICE?.fetch.bind(env.LOOKUP_SERVICE) ?? fetchFn,
+          ),
+        )
       : Promise.resolve({ status: 'connection_required' } as const),
     env.GOOGLE_SERVICE_ACCOUNT_JSON && env.GA4_PROPERTY_ID
       ? section(() => getUsageMetrics(env, days, fetchFn))
