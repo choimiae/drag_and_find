@@ -1,4 +1,5 @@
 import type { LookupResult } from '../lookup/types';
+import { loadUsagePreference } from './usage-preference';
 
 interface StorageArea {
   get(key: string): Promise<Record<string, unknown>>;
@@ -37,6 +38,7 @@ export function createAnalyticsClient({
     async recordLookupOutcome(result: LookupResult): Promise<void> {
       if (!workerUrl) return;
       try {
+        if (!(await loadUsagePreference(storage))) return;
         const url = new URL('/telemetry', workerUrl);
         await fetchFn(url.href, {
           method: 'POST',

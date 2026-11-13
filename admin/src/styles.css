@@ -178,6 +178,27 @@ h1 {
   font-size: 11px;
   color: #5f6b7a;
 }
+.usage-control {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-bottom: 12px;
+  font-size: 11px;
+}
+.usage-control label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.usage-control input {
+  margin: 0;
+}
+.usage-control span {
+  color: #5f6b7a;
+}
 .metrics {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -434,6 +455,11 @@ h1 {
   .section-heading p {
     margin-top: 4px;
   }
+  .usage-control {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 4px;
+  }
   .metric strong {
     font-size: 22px;
   }
@@ -472,6 +498,7 @@ h1 {
   .admin-loading-label,
   .dashboard-footer,
   .section-heading p,
+  .usage-control span,
   .metric span,
   .metric small,
   .detail-row span,

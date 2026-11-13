@@ -61,6 +61,7 @@ export function renderDashboard(root: HTMLElement, dashboard: DashboardResponse)
       </header>
       <main>
         <div class="section-heading"><h2>현황</h2><p>조회 사용 설치 수는 사람 수와 다를 수 있습니다</p></div>
+        <div class="usage-control"><label for="include-my-usage"><input id="include-my-usage" type="checkbox" disabled />이 브라우저의 내 조회 포함</label><span id="usage-control-status" role="status">확장 연결 확인 중</span></div>
         <div class="metrics">
           <section class="metric metric-highlight"><span>조회 사용 설치 수</span><strong id="active-installs"></strong><small>실시간 · D1</small></section>
           <section class="metric"><span>단어 조회 건수</span><strong id="lookups"></strong><small>실시간 · D1</small></section>
@@ -208,12 +209,66 @@ export function renderLiveUsage(root: HTMLElement, usage: Section<UsageMetrics>)
 }
 
 let requestSequence = 0;
+const usageControlCleanups = new WeakMap<HTMLElement, () => void>();
 const latestDashboardRequest = new WeakMap<HTMLElement, number>();
 const latestLiveRequest = new WeakMap<HTMLElement, number>();
 const latestLiveResult = new WeakMap<
   HTMLElement,
   { days: string; sequence: number; usage: Section<UsageMetrics> }
 >();
+
+export function connectUsageControl(root: HTMLElement): () => void {
+  const checkbox = root.querySelector<HTMLInputElement>('#include-my-usage');
+  const status = root.querySelector<HTMLElement>('#usage-control-status');
+  if (!checkbox || !status) return () => {};
+
+  let requestId = '';
+  let timer: number | undefined;
+  let savedValue: boolean | undefined;
+  const send = (kind: 'get' | 'set', includeUsage?: boolean) => {
+    requestId = crypto.randomUUID();
+    checkbox.disabled = true;
+    window.postMessage(
+      { channel: 'drag-and-find-usage', kind, id: requestId, includeUsage },
+      window.location.origin,
+    );
+    window.clearTimeout(timer);
+    timer = window.setTimeout(() => {
+      checkbox.disabled = true;
+      if (savedValue !== undefined) checkbox.checked = savedValue;
+      status.textContent = '이 브라우저의 확장에 연결할 수 없습니다.';
+    }, 2_000);
+  };
+  const onMessage = (event: MessageEvent<unknown>) => {
+    if (event.source !== window || event.origin !== window.location.origin) return;
+    const message = event.data;
+    if (typeof message !== 'object' || message === null || Array.isArray(message)) return;
+    const { channel, kind, id, includeUsage } = message as Record<string, unknown>;
+    if (channel !== 'drag-and-find-usage' || id !== requestId) return;
+    if (kind !== 'state' && kind !== 'error') return;
+    window.clearTimeout(timer);
+    if (kind === 'state' && typeof includeUsage === 'boolean') {
+      savedValue = includeUsage;
+      checkbox.checked = includeUsage;
+      checkbox.disabled = false;
+      status.textContent = '변경하면 이후 조회부터 적용됩니다.';
+    } else {
+      if (savedValue !== undefined) checkbox.checked = savedValue;
+      checkbox.disabled = savedValue === undefined;
+      status.textContent = '설정을 저장하지 못했습니다.';
+    }
+  };
+  const onChange = () => send('set', checkbox.checked);
+  window.addEventListener('message', onMessage);
+  checkbox.addEventListener('change', onChange);
+  send('get');
+
+  return () => {
+    window.clearTimeout(timer);
+    window.removeEventListener('message', onMessage);
+    checkbox.removeEventListener('change', onChange);
+  };
+}
 
 export async function loadDashboard(root: HTMLElement, days: 1 | 7 | 30): Promise<void> {
   const startedAt = ++requestSequence;
@@ -223,7 +278,9 @@ export async function loadDashboard(root: HTMLElement, days: 1 | 7 | 30): Promis
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     const data = (await response.json()) as DashboardResponse;
     if (latestDashboardRequest.get(root) !== startedAt) return;
+    usageControlCleanups.get(root)?.();
     renderDashboard(root, data);
+    usageControlCleanups.set(root, connectUsageControl(root));
     const liveResult = latestLiveResult.get(root);
     if (liveResult?.days === String(days) && liveResult.sequence > startedAt)
       renderLiveUsage(root, liveResult.usage);

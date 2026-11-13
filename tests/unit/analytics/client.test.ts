@@ -1,7 +1,31 @@
 import { describe, expect, it, vi } from 'vitest';
 import { createAnalyticsClient } from '../../../lib/analytics/client';
+import { memoryArea } from '../memory-area';
 
 describe('확장 조회 통계', () => {
+  it('설정에서 내 조회 포함을 끄면 이후 통계를 보내지 않고 다시 켜면 보낸다', async () => {
+    const storage = memoryArea({ includeUsage: false });
+    const fetchFn = vi.fn(async () => new Response(null, { status: 204 }));
+    const analytics = createAnalyticsClient({
+      workerUrl: 'https://lookup.example.test',
+      version: '1.0.6',
+      storage,
+      fetchFn,
+    });
+
+    await analytics.recordLookupOutcome({ status: 'not_found' });
+    expect(fetchFn).not.toHaveBeenCalled();
+    expect(await storage.get('analyticsClientId')).toEqual({});
+
+    await storage.set({ includeUsage: true });
+    await analytics.recordLookupOutcome({ status: 'not_found' });
+    expect(fetchFn).toHaveBeenCalledTimes(1);
+
+    await storage.set({ includeUsage: false });
+    await analytics.recordLookupOutcome({ status: 'not_found' });
+    expect(fetchFn).toHaveBeenCalledTimes(1);
+  });
+
   it('설치별 ID를 재사용하고 결과 종류·버전만 전송한다', async () => {
     const values = new Map<string, string>();
     const storage = {

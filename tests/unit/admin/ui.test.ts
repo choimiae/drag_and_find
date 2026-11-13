@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
+  connectUsageControl,
   pollLiveUsage,
   loadDashboard,
   renderDashboard,
@@ -39,6 +40,41 @@ describe('관리자 대시보드', () => {
     expect(root.textContent).toContain('76');
     expect(root.textContent).toContain('Worker 현재 상태');
     expect(root.textContent).not.toContain('128');
+    expect(root.querySelector<HTMLInputElement>('#include-my-usage')?.disabled).toBe(true);
+  });
+
+  it('관리자 체크박스가 확장의 현재 상태를 읽고 이후 조회 포함 여부를 전달한다', () => {
+    const root = document.querySelector<HTMLElement>('#app')!;
+    renderDashboard(root, dashboard);
+    const checkbox = root.querySelector<HTMLInputElement>('#include-my-usage')!;
+    const requests: Array<Record<string, unknown>> = [];
+    const post = vi.spyOn(window, 'postMessage').mockImplementation((message) => {
+      requests.push(message as Record<string, unknown>);
+    });
+    const disconnect = connectUsageControl(root);
+
+    const read = requests[0];
+    expect(read).toMatchObject({ channel: 'drag-and-find-usage', kind: 'get' });
+    window.dispatchEvent(
+      new MessageEvent('message', {
+        origin: window.location.origin,
+        source: window,
+        data: { channel: 'drag-and-find-usage', kind: 'state', id: read?.id, includeUsage: true },
+      }),
+    );
+    expect(checkbox.disabled).toBe(false);
+    expect(checkbox.checked).toBe(true);
+
+    checkbox.checked = false;
+    checkbox.dispatchEvent(new Event('change'));
+    expect(requests[1]).toMatchObject({
+      channel: 'drag-and-find-usage',
+      kind: 'set',
+      includeUsage: false,
+    });
+
+    disconnect();
+    post.mockRestore();
   });
 
   it('스토어 이용자 수를 일일 수치로 표시하고 확인 시각은 하단 한 곳에 둔다', () => {

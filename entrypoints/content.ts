@@ -6,11 +6,13 @@ import { isTriggerRequest } from '../lib/messages';
 import { watchSettings } from '../lib/content/settings-watch';
 import { SETTINGS_KEY, loadSettings } from '../lib/settings';
 import { createOverlay } from '../lib/ui/overlay';
+import { installAdminUsageControl } from '../lib/content/admin-usage-control';
 
 export default defineContentScript({
   matches: ['<all_urls>'],
   allFrames: true,
   main() {
+    installAdminUsageControl(window, browser.storage.local);
     const overlay = createOverlay(document, window);
     const controller = createController({
       win: window,
